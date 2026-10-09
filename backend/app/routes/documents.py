@@ -7,7 +7,9 @@ from ..database.db import save_document, get_document
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
-UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
+# Use DATA_DIR env var for Render persistent disk (/data/uploads), fallback to local uploads/
+_data_dir = Path(os.environ.get("DATA_DIR", str(Path(__file__).resolve().parent.parent.parent)))
+UPLOAD_DIR = _data_dir / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.post("")

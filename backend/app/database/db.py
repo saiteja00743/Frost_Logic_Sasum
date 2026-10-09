@@ -4,8 +4,10 @@ import os
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "clauseguard.db"
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+# Use DATA_DIR env var for Render persistent disk (/data), fallback to local data/
+_data_dir = Path(os.environ.get("DATA_DIR", str(Path(__file__).resolve().parent.parent.parent / "data")))
+_data_dir.mkdir(parents=True, exist_ok=True)
+DB_PATH = _data_dir / "clauseguard.db"
 
 def get_db_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(str(DB_PATH))
