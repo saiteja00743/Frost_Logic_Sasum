@@ -1,5 +1,6 @@
-import React from 'react';
-import { Shield, Sparkles, History, Settings, FileText, Activity } from 'lucide-react';
+﻿import React from "react";
+import { Shield, History, Settings, FileText, Sun, Moon } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
 
 export default function Navbar({
   backendStatus,
@@ -8,6 +9,9 @@ export default function Navbar({
   onReset,
   hasAnalysis,
 }) {
+  const { theme, toggleTheme } = useTheme();
+  const isLight = theme === "light";
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -28,7 +32,7 @@ export default function Navbar({
                 AI
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block">Legal Document & Risk Intelligence</p>
+            <p className="text-[11px] text-slate-400 hidden sm:block">Legal Document &amp; Risk Intelligence</p>
           </div>
         </div>
 
@@ -38,14 +42,14 @@ export default function Navbar({
           <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 border border-slate-800 text-slate-300">
             <span
               className={`w-2 h-2 rounded-full ${
-                backendStatus === 'online'
-                  ? 'bg-emerald-400 animate-pulse'
-                  : backendStatus === 'checking'
-                  ? 'bg-amber-400'
-                  : 'bg-rose-400'
+                backendStatus === "online"
+                  ? "bg-emerald-400 animate-pulse"
+                  : backendStatus === "checking"
+                  ? "bg-amber-400"
+                  : "bg-rose-400"
               }`}
             />
-            <span>{backendStatus === 'online' ? 'Backend Ready' : 'Connecting...'}</span>
+            <span>{backendStatus === "online" ? "Backend Ready" : "Connecting..."}</span>
           </div>
 
           {hasAnalysis && (
@@ -70,10 +74,34 @@ export default function Navbar({
           <button
             onClick={onOpenSettings}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            title="LLM & Engine Settings"
+            title="LLM &amp; Engine Settings"
           >
             <Settings className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden sm:inline">AI Settings</span>
+          </button>
+
+          {/* ── Theme Toggle ───────────────────────────────── */}
+          <button
+            onClick={toggleTheme}
+            id="theme-toggle-btn"
+            title={isLight ? "Switch to Dark Mode" : "Switch to Light Mode"}
+            className="theme-toggle-btn flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-300"
+            style={{ minWidth: "76px" }}
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                transition: "transform 0.3s ease, opacity 0.3s ease",
+                transform: isLight ? "rotate(0deg) scale(1)" : "rotate(-20deg) scale(0.9)",
+              }}
+            >
+              {isLight ? (
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <Moon className="w-3.5 h-3.5 text-sky-300" />
+              )}
+            </span>
+            <span className="hidden sm:inline">{isLight ? "Light" : "Dark"}</span>
           </button>
         </div>
       </div>

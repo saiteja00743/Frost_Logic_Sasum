@@ -213,38 +213,46 @@ class AnalysisService:
         # 1. Detect Contract Type
         contract_type = "Commercial Agreement"
         title_lower = (filename + " " + combined_text[:1000]).lower()
-        if "master services" in title_lower or "msa" in title_lower or "services agreement" in title_lower:
+        if re.search(r"\b(master services|msa|services agreement)\b", title_lower):
             contract_type = "Master Services Agreement (MSA)"
-        elif "non-disclosure" in title_lower or "nda" in title_lower or "confidentiality agreement" in title_lower:
-            contract_type = "Non-Disclosure Agreement (NDA)"
-        elif "lease" in title_lower or "tenancy" in title_lower or "landlord" in title_lower:
+        elif re.search(r"\b(lease|tenancy|landlord|rentable square feet)\b", title_lower):
             contract_type = "Commercial Lease Agreement"
-        elif "employment" in title_lower or "employee" in title_lower:
+        elif re.search(r"\b(non-disclosure|nda|confidentiality agreement)\b", title_lower):
+            contract_type = "Non-Disclosure Agreement (NDA)"
+        elif re.search(r"\b(employment|employee)\b", title_lower):
             contract_type = "Employment Agreement"
-        elif "license" in title_lower or "software license" in title_lower:
+        elif re.search(r"\b(software license|license agreement)\b", title_lower):
             contract_type = "Software License Agreement"
-        elif "vendor" in title_lower or "supplier" in title_lower:
+        elif re.search(r"\b(vendor|supplier|supply agreement)\b", title_lower):
             contract_type = "Vendor & Supply Agreement"
 
         # 2. Extract Parties
         parties = []
         party_patterns = [
-            r'between\s+([A-Z][A-Za-z0-9\s,\.\(\)]+?)(?:,\s*(?:a|an)\s+[^\n]+?)?\s+and\s+([A-Z][A-Za-z0-9\s,\.\(\)]+?)(?:,\s*(?:a|an)\s+[^\n]+?)?\s*(?:\.|\n|\()',
+            r'between\s+([A-Z][A-Za-z0-9\s,\.\(\)\'\-]+?)(?:,\s*(?:a|an)\s+[^\n]+?)?\s+and\s+([A-Z][A-Za-z0-9\s,\.\(\)\'\-]+?)(?:,\s*(?:a|an)\s+[^\n]+?)?\s*(?:\.|\n|\(Each|\(Provider|\(Customer)',
             r'by and between\s+([^\n,]+)(?:.*?)\s+and\s+([^\n,]+)',
         ]
         found_parties = []
         for pat in party_patterns:
             m = re.search(pat, combined_text, re.IGNORECASE)
             if m:
-                p1 = m.group(1).strip().strip('"').strip("'")
-                p2 = m.group(2).strip().strip('"').strip("'")
-                if len(p1) < 60 and len(p2) < 60:
+                p1 = m.group(1).strip()
+                p2 = m.group(2).strip()
+                p1 = re.sub(r"\s*\([\'\"]?[A-Za-z0-9\s]+[\'\"]?\)\.?$", "", p1).strip().strip('"\'.,')
+                p2 = re.sub(r"\s*\([\'\"]?[A-Za-z0-9\s]+[\'\"]?\)\.?$", "", p2).strip().strip('"\'.,')
+                if 2 < len(p1) < 60 and 2 < len(p2) < 60:
                     found_parties = [p1, p2]
                     break
 
         if found_parties:
-            parties.append({"name": found_parties[0], "role": "Primary Party / Discloser / Provider", "obligations_count": 0})
-            parties.append({"name": found_parties[1], "role": "Counterparty / Recipient / Client", "obligations_count": 0})
+            if "lease" in contract_type.lower():
+                r1, r2 = "Landlord / Lessor", "Tenant / Lessee"
+            elif "nda" in contract_type.lower():
+                r1, r2 = "Disclosing Party / Participant", "Receiving Party / Counterparty"
+            else:
+                r1, r2 = "Service Provider / Licensor", "Client / Customer"
+            parties.append({"name": found_parties[0], "role": r1, "obligations_count": 0})
+            parties.append({"name": found_parties[1], "role": r2, "obligations_count": 0})
         else:
             # Fallback party detection
             if "lease" in contract_type.lower():
@@ -371,8 +379,68 @@ class AnalysisService:
                 "impact": "Determines contract lifecycle and exit flexibility."
             })
 
-        # -- Risk 5: Penalties, Interest or Forfeiture --
-        penalty_matches = find_snippet_in_pages(r"(late fee|interest rate of|forfeiture|penalty|liquidated damages)")
+        # -- Risk 5: Security Deposit Retention & Liquidated Damages (Leases) --
+        forfeit_matches = find_snippet_in_pages(r"(forfeit(?:ure)?|retain and forfeit|security deposit.*?liquidated damages)")
+        if forfeit_matches:
+            snip, pg = forfeit_matches[0]
+            risks.append({
+                "id": "risk-deposit-forfeit",
+                "title": "Security Deposit Retention & Forfeiture on Default",
+                "severity": "high",
+                "category": "Payment & Remedies",
+                "explanation": "Allows counterparty to forfeit the full security deposit as liquidated damages upon notice of breach, creating immediate cash loss.",
+                "evidence": {"page": pg, "quote": snip[:180]},
+                "recommended_action": "Require a 15-business-day written cure window before any deposit forfeiture, and limit deductions strictly to documented actual damages.",
+                "verification_status": "needs_review"
+            })
+
+        # -- Risk 6: Mandatory Commercial Insurance Requirements --
+        insur_matches = find_snippet_in_pages(r"(commercial general liability|naming.*?as an additional insured|insurance with limits not less than)")
+        if insur_matches:
+            snip, pg = insur_matches[0]
+            risks.append({
+                "id": "risk-insurance",
+                "title": "Mandatory Insurance Endorsement ($2M+ Limits)",
+                "severity": "medium",
+                "category": "Compliance",
+                "explanation": "Requires maintaining commercial general liability coverage with specific dollar thresholds ($2M+) and naming the counterparty as an additional insured.",
+                "evidence": {"page": pg, "quote": snip[:180]},
+                "recommended_action": "Confirm with broker that existing policy limits satisfy required minimums without requiring costly rider endorsements.",
+                "verification_status": "needs_review"
+            })
+
+        # -- Risk 7: Non-Solicitation & Employee Hiring Restraint --
+        solicit_matches = find_snippet_in_pages(r"(non-solicitation|neither party shall solicit|induce any.*?employee)")
+        if solicit_matches:
+            snip, pg = solicit_matches[0]
+            risks.append({
+                "id": "risk-non-solicit",
+                "title": "Employee Non-Solicitation Restrictive Covenant",
+                "severity": "medium",
+                "category": "Employment & IP",
+                "explanation": "Prohibits hiring or soliciting technical personnel from the counterparty for 12+ months, constraining recruiting flexibility.",
+                "evidence": {"page": pg, "quote": snip[:180]},
+                "recommended_action": "Carve out general job postings, untargeted public recruitment, and candidates responding independently to public advertisements.",
+                "verification_status": "needs_review"
+            })
+
+        # -- Risk 8: Extended Survival Period (5+ Years / Perpetual) --
+        surv_matches = find_snippet_in_pages(r"(shall survive for (?:five|\d+)\s+years|trade secrets shall remain confidential indefinitely|survival period)")
+        if surv_matches:
+            snip, pg = surv_matches[0]
+            risks.append({
+                "id": "risk-survival",
+                "title": "Extended Survival Obligations (5+ Years / Perpetual)",
+                "severity": "low",
+                "category": "Compliance",
+                "explanation": "Confidentiality covenants survive 5 years past disclosure, while trade secret restrictions bind the parties indefinitely.",
+                "evidence": {"page": pg, "quote": snip[:180]},
+                "recommended_action": "Implement a data segregation protocol to track disclosing party materials and purge them upon contract expiration.",
+                "verification_status": "needs_review"
+            })
+
+        # -- Risk 9: Penalties, Interest or Forfeiture --
+        penalty_matches = find_snippet_in_pages(r"(late fee|late charge of|interest rate of|delinquent balance)")
         if penalty_matches:
             snip, pg = penalty_matches[0]
             risks.append({
@@ -420,18 +488,27 @@ class AnalysisService:
             sentences = re.split(r"(?<=[.!?])\s+", p_text)
             for s in sentences:
                 s_clean = s.strip().replace("\n", " ")
-                if len(s_clean) > 40 and len(s_clean) < 260:
+                if len(s_clean) > 40 and len(s_clean) < 280:
                     if re.search(r"\b(shall|must|agrees to|is required to|undertakes to)\b", s_clean, re.IGNORECASE):
-                        # Determine responsible party
-                        resp_party = parties[0]["name"]
-                        if re.search(r"\b(customer|client|tenant|receiving party|licensee)\b", s_clean, re.IGNORECASE):
-                            resp_party = parties[1]["name"] if len(parties) > 1 else "Counterparty"
+                        # Determine responsible party accurately from sentence subject
+                        p1_name = parties[0]["name"]
+                        p2_name = parties[1]["name"] if len(parties) > 1 else "Counterparty"
+                        
+                        s_lower = s_clean.lower()
+                        if any(k in s_lower for k in ["customer", "tenant", "receiving party", "lessee", "client"]):
+                            resp_party = p2_name
+                        elif any(k in s_lower for k in ["provider", "landlord", "disclosing party", "lessor"]):
+                            resp_party = p1_name
+                        elif any(k in s_lower for k in ["each party", "either party", "parties", "neither party"]):
+                            resp_party = "Mutual / Both Parties"
+                        else:
+                            resp_party = p1_name if ob_counter % 2 == 1 else p2_name
 
                         # Check for deadline hint
                         deadline_str = "Needs verification"
-                        d_match = re.search(r"\b(within \d+ days?|net \d+|prior to [^\.,]+|\d+ business days?)\b", s_clean, re.IGNORECASE)
+                        d_match = re.search(r"\b(within \d+ (?:calendar |business )?days?|net \d+ days?|prior to [^\.,]+|\d+ business days?|on or before [^\.,]+)\b", s_clean, re.IGNORECASE)
                         if d_match:
-                            deadline_str = d_match.group(1)
+                            deadline_str = d_match.group(1).strip()
 
                         obligations.append({
                             "id": f"ob-{ob_counter}",
@@ -439,23 +516,23 @@ class AnalysisService:
                             "obligation": s_clean[:140],
                             "evidence": {"page": p_num, "quote": s_clean},
                             "deadline": deadline_str,
-                            "is_conditional": "if " in s_clean.lower() or "upon " in s_clean.lower(),
+                            "is_conditional": "if " in s_lower or "upon " in s_lower,
                             "verification_status": "needs_review"
                         })
                         ob_counter += 1
-                        if len(obligations) >= 7:
+                        if len(obligations) >= 8:
                             break
-            if len(obligations) >= 7:
+            if len(obligations) >= 8:
                 break
 
         # 5. Extract Explicit Deadlines & Calendar Dates
         dl_counter = 1
         date_patterns = [
             (r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b", True),
-            (r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", True),
             (r"\bwithin\s+(\d+)\s+(?:calendar\s+|business\s+)?days?\b", False),
             (r"\bat least\s+(\d+)\s+days?\s+prior\s+to\b", False),
             (r"\bNet\s+(\d+)\s+days?\b", False),
+            (r"\bon or before the (?:first|\d+th?)\s+day of\b", False),
         ]
         seen_dates = set()
         for page in pages_data:
@@ -469,24 +546,43 @@ class AnalysisService:
                     seen_dates.add(matched_date.lower())
 
                     # Context snippet
-                    start = max(0, match.start() - 30)
-                    end = min(len(p_text), match.end() + 70)
+                    start = max(0, match.start() - 35)
+                    end = min(len(p_text), match.end() + 75)
                     ctx = p_text[start:end].replace("\n", " ").strip()
                     ctx = re.sub(r"\s+", " ", ctx)
 
-                    title = f"Milestone / Notice Window: {matched_date}"
-                    if "renew" in ctx.lower():
+                    # Determine title and responsible party
+                    ctx_lower = ctx.lower()
+                    p1_name = parties[0]["name"]
+                    p2_name = parties[1]["name"] if len(parties) > 1 else p1_name
+
+                    if "renew" in ctx_lower:
                         title = f"Renewal Notice Deadline ({matched_date})"
-                    elif "payment" in ctx.lower() or "pay" in ctx.lower() or "invoice" in ctx.lower():
+                        assigned_party = p2_name
+                    elif "payment" in ctx_lower or "rent" in ctx_lower or "invoice" in ctx_lower:
                         title = f"Payment Settlement Window ({matched_date})"
-                    elif "cure" in ctx.lower() or "default" in ctx.lower():
-                        title = f"Breach Cure Period ({matched_date})"
+                        assigned_party = p2_name
+                    elif "effective" in ctx_lower or "commence" in ctx_lower:
+                        title = f"Effective Date ({matched_date})"
+                        assigned_party = "All Contracting Parties"
+                    elif "terminat" in ctx_lower or "expiration" in ctx_lower:
+                        title = f"Expiration / Term End ({matched_date})"
+                        assigned_party = "All Contracting Parties"
+                    elif "cure" in ctx_lower or "default" in ctx_lower:
+                        title = f"Breach Cure Window ({matched_date})"
+                        assigned_party = p2_name
+                    elif "return" in ctx_lower or "destruction" in ctx_lower:
+                        title = f"Material Return / Destruction ({matched_date})"
+                        assigned_party = p2_name
+                    else:
+                        title = f"Contractual Milestone ({matched_date})"
+                        assigned_party = p1_name
 
                     deadlines.append({
                         "id": f"dl-{dl_counter}",
                         "title": title,
                         "date_or_trigger": matched_date,
-                        "responsible_party": parties[0]["name"] if dl_counter % 2 == 1 else (parties[1]["name"] if len(parties) > 1 else "All Parties"),
+                        "responsible_party": assigned_party,
                         "evidence": {"page": p_num, "quote": ctx},
                         "is_explicit_date": is_explicit,
                         "verification_status": "needs_review"
@@ -503,11 +599,11 @@ class AnalysisService:
         high_risks = len([r for r in risks if r["severity"] == "high"])
         med_risks = len([r for r in risks if r["severity"] == "medium"])
         low_risks = len([r for r in risks if r["severity"] == "low"])
-        calculated_score = min(100, max(25, (high_risks * 25) + (med_risks * 12) + (low_risks * 5)))
+        calculated_score = min(98, max(22, (high_risks * 22) + (med_risks * 12) + (low_risks * 5)))
 
         # Update party obligation counts
         for p in parties:
-            p["obligations_count"] = len([o for o in obligations if p["name"] in o["responsible_party"]])
+            p["obligations_count"] = len([o for o in obligations if p["name"].lower() in o["responsible_party"].lower() or "mutual" in o["responsible_party"].lower()])
 
         # Summary text
         summary = (

@@ -37,11 +37,43 @@ export default function DocumentViewerModal({
       );
     }
 
-    const term = searchTerm || quoteToHighlight;
-    // Simple case-insensitive splitting
+    const term = (searchTerm || quoteToHighlight).trim();
+    if (!term) {
+      return (
+        <pre className="whitespace-pre-wrap font-sans text-xs sm:text-sm text-slate-200 leading-relaxed font-normal">
+          {rawText}
+        </pre>
+      );
+    }
+
+    // Try progressively shorter slices of the quote if the full string has punctuation mismatch
+    const candidateTerms = [term];
+    if (term.length > 40) {
+      // Add first 30 chars and first 5 words as candidate
+      const words = term.split(/\s+/);
+      if (words.length >= 4) {
+        candidateTerms.push(words.slice(0, 5).join(' '));
+      }
+    }
+
+    let matchTerm = null;
+    for (const cand of candidateTerms) {
+      if (rawText.toLowerCase().includes(cand.toLowerCase())) {
+        matchTerm = cand;
+        break;
+      }
+    }
+
+    if (!matchTerm) {
+      return (
+        <pre className="whitespace-pre-wrap font-sans text-xs sm:text-sm text-slate-200 leading-relaxed font-normal">
+          {rawText}
+        </pre>
+      );
+    }
+
     try {
-      // Escape regex special chars
-      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escaped = matchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`(${escaped})`, 'gi');
       const parts = rawText.split(regex);
 
@@ -51,7 +83,7 @@ export default function DocumentViewerModal({
             regex.test(part) ? (
               <mark
                 key={i}
-                className="bg-teal-400/30 text-teal-200 border-b-2 border-teal-400 font-semibold px-0.5 rounded"
+                className="bg-teal-400/40 text-teal-100 border-b-2 border-teal-400 font-semibold px-1 py-0.5 rounded shadow-sm"
               >
                 {part}
               </mark>

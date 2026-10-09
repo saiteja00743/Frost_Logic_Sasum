@@ -1,56 +1,87 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @layer base {
   :root {
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    /* Dark theme tokens (default) */
+    --bg-base:          #0B1120;
+    --bg-surface:       #0f172a;
+    --bg-card:          rgba(30,41,59,0.65);
+    --bg-panel:         rgba(15,23,42,0.75);
+    --bg-nav:           rgba(11,17,32,0.80);
+    --border-subtle:    rgba(255,255,255,0.08);
+    --border-card:      rgba(255,255,255,0.07);
+    --text-primary:     #F1F5F9;
+    --text-secondary:   #94A3B8;
+    --text-muted:       #64748B;
+    --scrollbar-track:  #0f172a;
+    --scrollbar-thumb:  #334155;
+    --scrollbar-hover:  #475569;
+    --btn-bg:           rgba(30,41,59,0.80);
+    --btn-hover:        #334155;
+    --btn-border:       #334155;
+    --btn-text:         #E2E8F0;
+  }
+
+  /* Light theme overrides */
+  html.light {
+    --bg-base:          #F8FAFC;
+    --bg-surface:       #FFFFFF;
+    --bg-card:          rgba(255,255,255,0.92);
+    --bg-panel:         rgba(248,250,252,0.95);
+    --bg-nav:           rgba(255,255,255,0.95);
+    --border-subtle:    rgba(0,0,0,0.08);
+    --border-card:      rgba(0,0,0,0.07);
+    --text-primary:     #0F172A;
+    --text-secondary:   #475569;
+    --text-muted:       #94A3B8;
+    --scrollbar-track:  #F1F5F9;
+    --scrollbar-thumb:  #CBD5E1;
+    --scrollbar-hover:  #94A3B8;
+    --btn-bg:           rgba(241,245,249,0.90);
+    --btn-hover:        #E2E8F0;
+    --btn-border:       #CBD5E1;
+    --btn-text:         #1E293B;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #0B1120;
-    color: #F1F5F9;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
     overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
+/* Theme transition on all elements */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.25s;
+  transition-timing-function: ease;
+}
+
 /* Custom modern scrollbars */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #0f172a;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
 
 /* Glassmorphism helpers */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
+  background: var(--bg-panel);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
 }
-
 .glass-card {
-  background: rgba(30, 41, 59, 0.65);
+  background: var(--bg-card);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-card);
 }
-
-.glass-card-hover {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
+.glass-card-hover { transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
 .glass-card-hover:hover {
   transform: translateY(-2px);
   border-color: rgba(14, 165, 233, 0.35);
@@ -58,14 +89,97 @@
 }
 
 /* Glow effects */
-.glow-teal {
-  box-shadow: 0 0 25px -5px rgba(20, 184, 166, 0.3);
+.glow-teal { box-shadow: 0 0 25px -5px rgba(20, 184, 166, 0.3); }
+.glow-blue { box-shadow: 0 0 25px -5px rgba(14, 165, 233, 0.3); }
+.glow-red  { box-shadow: 0 0 25px -5px rgba(239, 68, 68, 0.3); }
+
+/* ================================================================
+   LIGHT MODE OVERRIDES
+   All Tailwind dark-slate classes get mapped to light equivalents
+   ================================================================ */
+
+/* --- Backgrounds --- */
+html.light [class*="bg-slate-950"] { background-color: #F8FAFC !important; }
+html.light [class*="bg-slate-900"] { background-color: #F1F5F9 !important; }
+html.light [class*="bg-slate-800"] { background-color: #E2E8F0 !important; }
+html.light [class*="bg-slate-700"] { background-color: #CBD5E1 !important; }
+
+/* --- Borders --- */
+html.light [class*="border-slate-950"] { border-color: #E2E8F0 !important; }
+html.light [class*="border-slate-800"] { border-color: #CBD5E1 !important; }
+html.light [class*="border-slate-700"] { border-color: #94A3B8 !important; }
+
+/* --- Text --- */
+html.light .text-white             { color: #0F172A !important; }
+html.light [class*="text-slate-1"] { color: #0F172A !important; }
+html.light [class*="text-slate-2"] { color: #1E293B !important; }
+html.light [class*="text-slate-3"] { color: #334155 !important; }
+html.light [class*="text-slate-4"] { color: #64748B !important; }
+html.light [class*="text-slate-5"] { color: #94A3B8 !important; }
+html.light .hover\:text-white:hover { color: #0F172A !important; }
+
+/* --- Glassmorphism in light mode --- */
+html.light .glass-card {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05) !important;
+}
+html.light .glass-panel {
+  background: rgba(255,255,255,0.92) !important;
+  border-color: rgba(0,0,0,0.06) !important;
 }
 
-.glow-blue {
-  box-shadow: 0 0 25px -5px rgba(14, 165, 233, 0.3);
+/* --- Navbar header --- */
+html.light header {
+  background-color: rgba(255,255,255,0.95) !important;
+  border-bottom-color: #E2E8F0 !important;
 }
 
-.glow-red {
-  box-shadow: 0 0 25px -5px rgba(239, 68, 68, 0.3);
+/* --- Navbar logo inner dark circle --- */
+html.light .rounded-\[11px\] {
+  background-color: #FFFFFF !important;
+}
+
+/* --- Footer --- */
+html.light footer {
+  background-color: rgba(248,250,252,0.90) !important;
+  border-top-color: #E2E8F0 !important;
+}
+
+/* --- Upload drop zone --- */
+html.light [class*="border-dashed"] {
+  background-color: #FFFFFF !important;
+  border-color: #94A3B8 !important;
+}
+html.light [class*="border-dashed"]:hover {
+  background-color: #F8FAFC !important;
+  border-color: #64748B !important;
+}
+html.light [class*="border-dashed"][class*="bg-teal"] {
+  background-color: rgba(20,184,166,0.06) !important;
+  border-color: rgba(20,184,166,0.6) !important;
+}
+
+/* --- Dividers --- */
+html.light [class*="border-t"],
+html.light [class*="border-b"] { border-color: #E2E8F0 !important; }
+
+/* --- Theme toggle button --- */
+html.light .theme-toggle-btn {
+  background: rgba(226,232,240,0.9) !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
+}
+html.light .theme-toggle-btn:hover { background: #E2E8F0 !important; }
+
+/* --- Selection highlight --- */
+html.light ::selection {
+  background-color: rgba(20, 184, 166, 0.25);
+  color: #0F172A;
+}
+
+/* --- Sample card hover in light mode --- */
+html.light .glass-card:hover {
+  border-color: rgba(20,184,166,0.40) !important;
+  box-shadow: 0 4px 20px rgba(20,184,166,0.10) !important;
 }

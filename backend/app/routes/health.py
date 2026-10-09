@@ -5,9 +5,9 @@ router = APIRouter(prefix="/api", tags=["health"])
 
 @router.get("/health")
 def get_health():
-    has_openrouter = bool(os.getenv("OPENROUTER_API_KEY"))
-    has_openai = bool(os.getenv("OPENAI_API_KEY"))
-    has_gemini = bool(os.getenv("GEMINI_API_KEY"))
+    has_openrouter = bool(os.getenv("OPENROUTER_API_KEY", "").strip())
+    has_openai = bool(os.getenv("OPENAI_API_KEY", "").strip())
+    has_gemini = bool(os.getenv("GEMINI_API_KEY", "").strip())
 
     return {
         "status": "ok",

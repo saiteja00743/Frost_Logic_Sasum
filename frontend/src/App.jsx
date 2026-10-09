@@ -11,6 +11,7 @@ import SettingsModal from './components/SettingsModal';
 import HistoryDrawer from './components/HistoryDrawer';
 import { api } from './services/api';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import { ThemeProvider } from './context/ThemeContext';
 
 export default function App() {
   const [backendStatus, setBackendStatus] = useState('checking');
@@ -128,7 +129,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-teal-500 selection:text-white">
+    <ThemeProvider>
+    <div className="min-h-screen flex flex-col font-sans" style={{ backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)' }}>
       {/* Top Navbar */}
       <Navbar
         backendStatus={backendStatus}
@@ -242,5 +244,6 @@ export default function App() {
         <p>ClauseGuard AI • Built for 36-Hour Hackathon • For human assistance only, does not constitute legal advice.</p>
       </footer>
     </div>
+    </ThemeProvider>
   );
 }
