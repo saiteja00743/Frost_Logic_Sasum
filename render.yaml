@@ -15,10 +15,8 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
-      - key: GEMINI_API_KEY
-        sync: false
       - key: LLM_MODEL
-        value: google/gemini-2.0-flash-001
+        value: gpt-4o-mini
       - key: DEBUG
         value: "False"
     disk:
