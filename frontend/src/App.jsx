@@ -123,7 +123,7 @@ function AppInner() {
     if (!analysisResult?.document_id) return;
     setIsLoading(true);
     setErrorMessage(null);
-    const pName = settings?.provider === 'gemini' ? 'Google Gemini' : settings?.provider === 'openai' ? 'OpenAI GPT-4o' : settings?.provider === 'openrouter' ? 'OpenRouter' : 'Intelligent Engine';
+    const pName = settings?.provider === 'gemini' ? 'Google Gemini' : settings?.provider === 'openai' ? 'OpenAI GPT-4o' : settings?.provider === 'groq' ? 'Groq Cloud (Llama 3.3)' : settings?.provider === 'openrouter' ? 'OpenRouter' : 'Intelligent Engine';
     setLoadingMessage(`Re-analyzing document with ${pName}...`);
 
     try {

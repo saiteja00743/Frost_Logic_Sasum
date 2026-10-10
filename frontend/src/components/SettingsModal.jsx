@@ -9,8 +9,7 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings, hasDocu
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
-    let savedProv = localStorage.getItem('clauseguard_provider') || 'auto';
-    if (savedProv === 'openrouter') savedProv = 'groq';
+    const savedProv = localStorage.getItem('clauseguard_provider') || 'auto';
     const savedKey = localStorage.getItem('clauseguard_api_key') || '';
     const savedModel = localStorage.getItem('clauseguard_model') || '';
     const savedUrl = localStorage.getItem('clauseguard_api_base_url') || '';
@@ -66,7 +65,7 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings, hasDocu
         return {
           placeholder: 'gsk_... (Free key from console.groq.com)',
           defaultModel: 'llama-3.3-70b-versatile',
-          help: 'Groq LPU Inference Engine offers ultra-fast response times and free API keys at console.groq.com.',
+          help: 'Groq Cloud provides ultra-fast inference with Llama 3.3 70B. Get a free API key at console.groq.com.',
         };
       default:
         return {
@@ -155,8 +154,8 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings, hasDocu
                     : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
                 }`}
               >
-                <div className="font-bold text-white mb-0.5">Groq Cloud (Free)</div>
-                <div className="text-[11px] text-teal-400 font-medium">Llama 3.3 70B (Fastest)</div>
+                <div className="font-bold text-white mb-0.5">Groq Cloud (Fast)</div>
+                <div className="text-[11px] text-teal-400 font-medium">Llama 3.3 70B (Free API)</div>
               </button>
             </div>
           </div>
