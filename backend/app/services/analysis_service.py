@@ -114,9 +114,10 @@ class AnalysisService:
         # Determine if an API key is available
         resolved_key = (
             api_key
+            or os.getenv("GROQ_API_KEY")
+            or os.getenv("GEMINI_API_KEY")
             or os.getenv("OPENROUTER_API_KEY")
             or os.getenv("OPENAI_API_KEY")
-            or os.getenv("GEMINI_API_KEY")
         )
 
         analysis_dict = None
@@ -138,19 +139,33 @@ class AnalysisService:
                 analysis_dict = None
 
         if not analysis_dict:
-            # If primary LLM failed (e.g. OpenAI quota 429), check if server has a fallback GEMINI_API_KEY
-            fallback_gemini = os.getenv("GEMINI_API_KEY")
-            if fallback_gemini and fallback_gemini != resolved_key:
+            # If primary LLM failed (e.g. OpenAI quota 429), check server GROQ_API_KEY or GEMINI_API_KEY
+            fallback_groq = os.getenv("GROQ_API_KEY")
+            if fallback_groq and fallback_groq != resolved_key:
                 try:
                     analysis_dict, engine_label = await cls._analyze_with_llm(
                         pages_data=pages_data,
-                        api_key=fallback_gemini,
-                        provider="gemini",
-                        custom_model="gemini-2.0-flash"
+                        api_key=fallback_groq,
+                        provider="groq",
+                        custom_model="llama-3.3-70b-versatile"
                     )
                     llm_error_reason = None
                 except Exception as fb_err:
-                    print(f"[AnalysisService] Server Gemini fallback also failed: {fb_err}")
+                    print(f"[AnalysisService] Server Groq fallback failed: {fb_err}")
+
+            if not analysis_dict:
+                fallback_gemini = os.getenv("GEMINI_API_KEY")
+                if fallback_gemini and fallback_gemini != resolved_key:
+                    try:
+                        analysis_dict, engine_label = await cls._analyze_with_llm(
+                            pages_data=pages_data,
+                            api_key=fallback_gemini,
+                            provider="gemini",
+                            custom_model="gemini-2.0-flash"
+                        )
+                        llm_error_reason = None
+                    except Exception as fb_err:
+                        print(f"[AnalysisService] Server Gemini fallback also failed: {fb_err}")
 
         if not analysis_dict:
             analysis_dict = cls._analyze_heuristic(filename, pages_data)
@@ -244,7 +259,36 @@ class AnalysisService:
                 parsed = json.loads(raw_content)
                 return parsed, engine_name
 
-        # 3. OpenRouter API
+        # 3. Groq Cloud API (LPU - Llama 3.3 70B Versatile)
+        if provider == "groq" or api_key.startswith("gsk_"):
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            model = custom_model or os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            engine_name = f"Groq LPU ({model})"
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Analyze this contract thoroughly and return ONLY the specified JSON:\n\n{full_content}"}
+                ],
+                "temperature": 0.1,
+                "response_format": {"type": "json_object"}
+            }
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                if resp.status_code != 200:
+                    try:
+                        err_json = resp.json()
+                        err_detail = err_json.get("error", {}).get("message", resp.text)
+                    except Exception:
+                        err_detail = resp.text
+                    raise RuntimeError(f"Groq API Error ({resp.status_code}): {err_detail}")
+                data = resp.json()
+                raw_content = data["choices"][0]["message"]["content"]
+                parsed = json.loads(raw_content)
+                return parsed, engine_name
+
+        # 4. OpenRouter API
         url = "https://openrouter.ai/api/v1/chat/completions"
         model = custom_model or os.getenv("LLM_MODEL") or "google/gemini-2.0-flash-001"
         headers = {

@@ -9,7 +9,8 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings, hasDocu
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
-    const savedProv = localStorage.getItem('clauseguard_provider') || 'auto';
+    let savedProv = localStorage.getItem('clauseguard_provider') || 'auto';
+    if (savedProv === 'openrouter') savedProv = 'groq';
     const savedKey = localStorage.getItem('clauseguard_api_key') || '';
     const savedModel = localStorage.getItem('clauseguard_model') || '';
     const savedUrl = localStorage.getItem('clauseguard_api_base_url') || '';
@@ -61,11 +62,11 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings, hasDocu
           defaultModel: 'gpt-4o-mini',
           help: 'Direct OpenAI GPT-4o Mini (Requires active credit balance in OpenAI account).',
         };
-      case 'openrouter':
+      case 'groq':
         return {
-          placeholder: 'sk-or-v1-...',
-          defaultModel: 'google/gemini-2.0-flash-001',
-          help: 'Unified LLM gateway supporting Claude, GPT-4, and open-source models.',
+          placeholder: 'gsk_... (Free key from console.groq.com)',
+          defaultModel: 'llama-3.3-70b-versatile',
+          help: 'Groq LPU Inference Engine offers ultra-fast response times and free API keys at console.groq.com.',
         };
       default:
         return {
@@ -147,15 +148,15 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings, hasDocu
 
               <button
                 type="button"
-                onClick={() => setProvider('openrouter')}
+                onClick={() => setProvider('groq')}
                 className={`p-3 rounded-xl border text-left text-xs transition cursor-pointer ${
-                  provider === 'openrouter'
+                  provider === 'groq'
                     ? 'border-teal-400 bg-teal-500/20 text-teal-200 ring-2 ring-teal-500/40 font-semibold'
                     : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
                 }`}
               >
-                <div className="font-bold text-white mb-0.5">OpenRouter / Claude</div>
-                <div className="text-[11px] text-slate-400">Unified LLM gateway</div>
+                <div className="font-bold text-white mb-0.5">Groq Cloud (Free)</div>
+                <div className="text-[11px] text-teal-400 font-medium">Llama 3.3 70B (Fastest)</div>
               </button>
             </div>
           </div>
