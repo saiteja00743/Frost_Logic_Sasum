@@ -98,10 +98,18 @@ export function createApi(getToken) {
       return res.json();
     },
 
-    async loadSample(sampleKey) {
+    async loadSample(sampleKey, options = {}) {
       const res = await fetch(`${getApiBase()}/sample/load/${sampleKey}`, {
         method: 'POST',
-        headers: authHeaders(token()),
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders(token()),
+        },
+        body: JSON.stringify({
+          api_key: options.apiKey || null,
+          provider: options.provider || 'auto',
+          custom_model: options.customModel || null,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

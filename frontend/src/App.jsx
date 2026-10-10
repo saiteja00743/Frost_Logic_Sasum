@@ -102,13 +102,40 @@ function AppInner() {
     setLoadingMessage('Loading and analyzing prepared sample agreement...');
 
     try {
-      const analysis = await api.loadSample(sampleKey);
+      const apiKey = localStorage.getItem('clauseguard_api_key') || null;
+      const provider = localStorage.getItem('clauseguard_provider') || 'auto';
+      const customModel = localStorage.getItem('clauseguard_model') || null;
+
+      const analysis = await api.loadSample(sampleKey, { apiKey, provider, customModel });
       const fullDoc = await api.getDocument(analysis.document_id);
       setDocumentData(fullDoc);
       setAnalysisResult(analysis);
     } catch (err) {
       console.error(err);
       setErrorMessage(err.message || 'Failed to load sample agreement.');
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
+  };
+
+  const handleReanalyze = async (settings) => {
+    if (!analysisResult?.document_id) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    const pName = settings?.provider === 'gemini' ? 'Google Gemini' : settings?.provider === 'openai' ? 'OpenAI GPT-4o' : settings?.provider === 'openrouter' ? 'OpenRouter' : 'Intelligent Engine';
+    setLoadingMessage(`Re-analyzing document with ${pName}...`);
+
+    try {
+      const analysis = await api.analyzeDocument(analysisResult.document_id, {
+        apiKey: settings?.apiKey ?? localStorage.getItem('clauseguard_api_key'),
+        provider: settings?.provider ?? localStorage.getItem('clauseguard_provider') ?? 'auto',
+        customModel: settings?.customModel ?? localStorage.getItem('clauseguard_model'),
+      });
+      setAnalysisResult(analysis);
+    } catch (err) {
+      console.error(err);
+      setErrorMessage(err.message || 'Failed to re-analyze document.');
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -216,7 +243,12 @@ function AppInner() {
         highlightQuote={activeViewerQuote}
         targetPage={activeViewerPage}
       />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} onSaveSettings={() => {}} />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSaveSettings={handleReanalyze}
+        hasDocument={Boolean(analysisResult)}
+      />
       <HistoryDrawer isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onSelectAnalysis={handleSelectHistoryItem} />
 
       <footer className="w-full border-t border-slate-800/80 bg-slate-950/60 py-6 text-center text-xs text-slate-500">

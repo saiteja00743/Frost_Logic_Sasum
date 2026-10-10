@@ -66,9 +66,19 @@ def get_available_samples():
     ]
 
 
+from typing import Optional
+from pydantic import BaseModel
+
+class SampleLoadRequest(BaseModel):
+    api_key: Optional[str] = None
+    provider: Optional[str] = "auto"
+    custom_model: Optional[str] = None
+
+
 @router.post("/sample/load/{sample_key}")
 async def load_and_analyze_sample(
     sample_key: str,
+    payload: Optional[SampleLoadRequest] = None,
     user_id: str = Depends(get_current_user),
 ):
     sample_files = {
@@ -100,12 +110,17 @@ async def load_and_analyze_sample(
         user_id=user_id,
     )
 
+    api_key = payload.api_key if payload else None
+    provider = payload.provider if payload else "auto"
+    custom_model = payload.custom_model if payload else None
+
     analysis_data = await AnalysisService.analyze_document(
         doc_id=doc_id,
         filename=filename,
         pages_data=pages_data,
-        api_key=None,
-        provider="auto",
+        api_key=api_key,
+        provider=provider,
+        custom_model=custom_model,
     )
 
     analysis_id = str(uuid.uuid4())
