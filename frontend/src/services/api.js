@@ -1,10 +1,19 @@
+// Default backend URL — Render deployment
+const RENDER_BACKEND_URL = 'https://frost-logic-sasum.onrender.com';
+
 export function getApiBase() {
+  // 1. User-configured URL from Settings modal takes highest priority
   const custom = typeof window !== 'undefined' ? localStorage.getItem('clauseguard_api_base_url') : '';
   if (custom && custom.trim()) {
     return custom.trim().replace(/\/+$/, '') + '/api';
   }
+  // 2. Build-time env variable (set in Vercel dashboard as VITE_API_BASE_URL)
   const envUrl = import.meta.env.VITE_API_BASE_URL || '';
-  return (envUrl ? envUrl.replace(/\/+$/, '') : '') + '/api';
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '') + '/api';
+  }
+  // 3. Hardcoded Render fallback
+  return RENDER_BACKEND_URL + '/api';
 }
 
 function getGuestId() {

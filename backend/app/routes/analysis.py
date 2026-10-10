@@ -35,13 +35,17 @@ async def analyze_document(
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
     analysis_id = str(uuid.uuid4())
-    save_analysis(
-        analysis_id=analysis_id,
-        document_id=request.document_id,
-        result=analysis_data,
-        engine_used=analysis_data.get("engine_used", "ClauseGuard Engine"),
-        user_id=user_id,
-    )
+    try:
+        save_analysis(
+            analysis_id=analysis_id,
+            document_id=request.document_id,
+            result=analysis_data,
+            engine_used=analysis_data.get("engine_used", "ClauseGuard Engine"),
+            user_id=user_id,
+        )
+    except Exception as save_err:
+        print(f"[ClauseGuard AI] Warning: save_analysis error (non-fatal): {save_err}")
+
     analysis_data["analysis_id"] = analysis_id
 
     return analysis_data

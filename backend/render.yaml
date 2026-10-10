@@ -11,12 +11,12 @@ services:
         value: "3.11.0"
       - key: DATA_DIR
         value: /data
-      - key: OPENROUTER_API_KEY
+      - key: GROQ_API_KEY
         sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: LLM_MODEL
-        value: gpt-4o-mini
+        value: llama-3.3-70b-versatile
       - key: DEBUG
         value: "False"
     disk:

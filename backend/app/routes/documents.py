@@ -31,6 +31,8 @@ async def upload_document(
     if file_size > 25 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File size exceeds maximum limit of 25MB.")
 
+    doc_id = str(uuid.uuid4())
+
     # Safe file write with fallback
     saved_path = None
     try:
