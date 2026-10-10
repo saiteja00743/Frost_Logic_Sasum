@@ -2,9 +2,12 @@ import json
 import os
 import re
 import uuid
+from time import perf_counter
+from .plain_summary_service import build_plain_summary, simplify_risks
 from typing import Dict, Any, List, Optional, Tuple
 import httpx
 from pydantic import ValidationError
+from datetime import datetime, timezone
 
 from ..schemas.models import AnalysisResult, Risk, Party, Obligation, Deadline, KeyClause, Evidence
 from .verification_service import VerificationService
@@ -24,6 +27,9 @@ Your job is to identify:
 
 CRITICAL RULES:
 - Never fabricate clauses, quotations, dates, parties, or page numbers.
+- Write in short everyday English for a small-business owner. Explain legal terms.
+- Use only amounts and time periods supported by the supplied text. Do not recommend invented notice periods, cure periods, insurance limits or grace periods.
+- If a passage only refers to another section, state that the full section must be checked; do not infer its conditions.
 - For every risk, obligation, deadline, and key clause, you MUST provide an exact, verbatim quotation from the text in `evidence.quote`.
 - Specify the 1-indexed `evidence.page` where the text was found.
 - If a deadline cannot be determined from explicit text, state 'Needs verification'.
@@ -130,51 +136,32 @@ class AnalysisService:
         Analyzes document pages using either configured LLM or Intelligent Heuristic Engine,
         then verifies all quotations against extracted text.
         """
-        # Determine if an API key is available
-        resolved_key = (
-            api_key
-            or os.getenv("GROQ_API_KEY")
-            or os.getenv("GEMINI_API_KEY")
-            or os.getenv("OPENROUTER_API_KEY")
-            or os.getenv("OPENAI_API_KEY")
-        )
-
+        started = perf_counter()
+        if not pages_data or any(not p.get("text", "").strip() for p in pages_data):
+            raise ValueError("One or more pages have no extractable text. Upload a searchable PDF with OCR applied to every scanned page.")
+        if len(pages_data) > 100 or sum(len(p.get("text", "")) for p in pages_data) > 250000:
+            raise ValueError("This release supports up to 100 pages and 250,000 text characters. Split the agreement into clearly named parts.")
+        # Use only the selected provider; a failure falls back to local rules.
+        providers = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY",
+                     "openrouter": "OPENROUTER_API_KEY", "openai": "OPENAI_API_KEY"}
+        chosen = provider or "auto"
+        resolved_key = api_key
+        if not resolved_key:
+            if chosen == "auto":
+                chosen = next((name for name, key in providers.items() if os.getenv(key)), "auto")
+            resolved_key = os.getenv(providers.get(chosen, "UNCONFIGURED_PROVIDER_KEY"))
         analysis_dict = None
-        engine_label = "Intelligent Legal Analysis Engine (Local Heuristic)"
-
+        engine_label = "Local rules engine"
         llm_error_reason = None
         if resolved_key and len(resolved_key.strip()) > 5:
             try:
                 analysis_dict, engine_label = await cls._analyze_with_llm(
-                    pages_data=pages_data,
-                    api_key=resolved_key,
-                    provider=provider or "auto",
-                    custom_model=custom_model
-                )
-            except Exception as e:
-                err_str = str(e)
-                print(f"[AnalysisService] LLM call failed: {err_str}. Falling back to Heuristic Engine.")
-                llm_error_reason = err_str
-                analysis_dict = None
-
-        if not analysis_dict:
-            # If primary LLM failed, check server-side fallback keys
-            for fb_key, fb_prov, fb_model in [
-                (os.getenv("GROQ_API_KEY"), "groq", "llama-3.3-70b-versatile"),
-                (os.getenv("GEMINI_API_KEY"), "gemini", "gemini-2.0-flash"),
-            ]:
-                if fb_key and fb_key != resolved_key:
-                    try:
-                        analysis_dict, engine_label = await cls._analyze_with_llm(
-                            pages_data=pages_data,
-                            api_key=fb_key,
-                            provider=fb_prov,
-                            custom_model=fb_model
-                        )
-                        llm_error_reason = None
-                        break
-                    except Exception as fb_err:
-                        print(f"[AnalysisService] Server {fb_prov} fallback also failed: {fb_err}")
+                    pages_data=pages_data, api_key=resolved_key,
+                    provider=chosen, custom_model=custom_model)
+            except Exception as exc:
+                # Provider error bodies can contain secrets or document text.
+                print(f"[AnalysisService] Provider request failed ({type(exc).__name__}); using local rules.")
+                llm_error_reason = "The selected provider was unavailable. Results use the limited local rules engine."
 
         if not analysis_dict:
             analysis_dict = cls._analyze_heuristic(filename, pages_data)
@@ -189,9 +176,17 @@ class AnalysisService:
         if llm_error_reason:
             analysis_dict["llm_notice"] = f"LLM Warning: {llm_error_reason}"
 
+        analysis_dict["created_at"] = datetime.now(timezone.utc).isoformat()
+        analysis_dict["coverage"] = {"processed_pages": len(pages_data), "total_pages": len(pages_data)}
+        analysis_dict["score_notice"] = "Review priority indicator, not a calibrated measure of legal risk."
+        AnalysisResult.model_validate(analysis_dict)
         # Run Evidence Verification Service
         analysis_dict = VerificationService.verify_analysis_findings(analysis_dict, pages_data)
 
+        if "Heuristic" in engine_label:
+            simplify_risks(analysis_dict)
+        analysis_dict["plain_summary"] = build_plain_summary(analysis_dict, pages_data)
+        analysis_dict["analysis_seconds"] = round(perf_counter() - started, 2)
         return analysis_dict
 
     @classmethod
@@ -205,7 +200,7 @@ class AnalysisService:
         """Call external LLM API (OpenAI, Gemini, or OpenRouter) with page-tagged content."""
         # Construct document text with page markers
         formatted_pages = []
-        for p in pages_data[:20]:  # limit to first 20 pages to protect context limits
+        for p in pages_data:  # Never silently omit contract pages
             formatted_pages.append(f"--- PAGE {p['page_number']} ---\n{p['text']}\n")
         full_content = "\n".join(formatted_pages)
 
@@ -659,8 +654,8 @@ class AnalysisService:
         dl_counter = 1
         date_patterns = [
             (r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b", True),
-            (r"\bwithin\s+(\d+)\s+(?:calendar\s+|business\s+)?days?\b", False),
-            (r"\bat least\s+(\d+)\s+days?\s+prior\s+to\b", False),
+            (r"\bwithin\s+(?:[a-z]+(?:[- ][a-z]+)?\s+\()?\d+\)?\s+(?:calendar\s+|business\s+)?days?\b", False),
+            (r"\bat least\s+(?:[a-z]+(?:[- ][a-z]+)?\s+\()?\d+\)?\s+(?:calendar\s+|business\s+)?days?\s+prior\s+to\b", False),
             (r"\bNet\s+(\d+)\s+days?\b", False),
             (r"\bon or before the (?:first|\d+th?)\s+day of\b", False),
         ]
@@ -729,7 +724,7 @@ class AnalysisService:
         high_risks = len([r for r in risks if r["severity"] == "high"])
         med_risks = len([r for r in risks if r["severity"] == "medium"])
         low_risks = len([r for r in risks if r["severity"] == "low"])
-        calculated_score = min(98, max(22, (high_risks * 22) + (med_risks * 12) + (low_risks * 5)))
+        calculated_score = min(100, max(0, (high_risks * 22) + (med_risks * 12) + (low_risks * 5)))
 
         # Update party obligation counts
         for p in parties:

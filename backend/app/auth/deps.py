@@ -1,88 +1,71 @@
-"""
-ClauseGuard AI — Auth dependency.
-Verifies the Supabase JWT passed as Bearer token in the Authorization header.
-Returns the user's UUID (sub claim) from the verified token.
-Falls back safely to 'guest_user' if auth is unconfigured or no credentials are provided.
-"""
+"""Fail-closed authentication and server-issued, signed demo sessions."""
 import os
-from typing import Optional
-from fastapi import Request, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import secrets
+import uuid
+from datetime import datetime, timedelta, timezone
+from functools import lru_cache
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
-
-SUPABASE_JWT_SECRET: str = os.environ.get("SUPABASE_JWT_SECRET", "")
+import httpx
 
 _bearer = HTTPBearer(auto_error=False)
+_demo_secret = os.getenv('DEMO_SESSION_SECRET') or secrets.token_urlsafe(48)
 
+def demo_enabled():
+    return os.getenv('ALLOW_DEMO', 'false').lower() == 'true'
 
-def _decode_token(token: str) -> Optional[dict]:
-    """
-    Verify and decode a Supabase JWT.
-    1. If SUPABASE_JWT_SECRET is set, verify cryptographic signature.
-    2. Extract claims (sub) instantly so user isolation is strictly
-       enforced with zero latency and no external blocking.
-    """
-    if not token or not token.strip():
+def issue_demo_session():
+    if not demo_enabled():
+        raise HTTPException(403, 'Demo sessions are disabled. Please sign in.')
+    expires = datetime.now(timezone.utc) + timedelta(days=7)
+    token = jwt.encode({'sub': 'demo_' + str(uuid.uuid4()), 'aud': 'clauseguard-demo',
+                        'iss': 'clauseguard', 'exp': expires}, _demo_secret, algorithm='HS256')
+    return {'access_token': token, 'expires_at': expires.isoformat()}
+
+@lru_cache(maxsize=1)
+def _jwks(url):
+    response = httpx.get(url + '/auth/v1/.well-known/jwks.json', timeout=10)
+    response.raise_for_status()
+    return response.json()
+
+def _decode_token(token):
+    try:
+        if demo_enabled():
+            try:
+                return jwt.decode(token, _demo_secret, algorithms=['HS256'],
+                    audience='clauseguard-demo', issuer='clauseguard',
+                    options={'require_exp': True, 'require_sub': True})
+            except JWTError:
+                pass
+        url = os.getenv('SUPABASE_URL', '').rstrip('/')
+        if not url:
+            return None
+        header = jwt.get_unverified_header(token)
+        if header.get('alg') == 'HS256':
+            key = os.getenv('SUPABASE_JWT_SECRET')
+            if not key:
+                return None
+            algorithms = ['HS256']
+        elif header.get('alg') in ('ES256', 'RS256'):
+            key = _jwks(url)
+            if not any(k.get('kid') == header.get('kid') for k in key.get('keys', [])):
+                _jwks.cache_clear()
+                key = _jwks(url)
+            algorithms = ['ES256', 'RS256']
+        else:
+            return None
+        return jwt.decode(token, key, algorithms=algorithms, audience='authenticated',
+            issuer=url + '/auth/v1', options={'require_exp': True, 'require_sub': True})
+    except (JWTError, ValueError, httpx.HTTPError):
         return None
 
-    # 1. Try local signature verification if secret is provided
-    if SUPABASE_JWT_SECRET:
-        try:
-            payload = jwt.decode(
-                token,
-                SUPABASE_JWT_SECRET,
-                algorithms=["HS256"],
-                options={"verify_aud": False},
-            )
-            return payload
-        except JWTError:
-            pass
-
-    # 2. Extract claims without signature verification
-    # Instantaneous, zero latency, guarantees per-user isolation
-    try:
-        claims = jwt.get_unverified_claims(token)
-        if claims and claims.get("sub"):
-            return claims
-    except Exception:
-        pass
-
-    return None
-
-
-# Public alias (used by analysis route for query-param token support)
 decode_token = _decode_token
 
+def get_current_user(creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> str:
+    payload = _decode_token(creds.credentials) if creds else None
+    if not payload or not payload.get('sub'):
+        raise HTTPException(401, 'Session expired or invalid. Sign in or start a new demo session.')
+    return str(payload['sub'])
 
-def get_current_user(
-    request: Request,
-    creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
-) -> str:
-    """
-    Return the user_id (UUID string) if a valid Supabase JWT is provided.
-    If no token is supplied, checks for X-Guest-ID for session isolation,
-    or falls back to 'guest_user'.
-    """
-    # 1. Authenticated Supabase user
-    if creds and creds.credentials:
-        payload = _decode_token(creds.credentials)
-        if payload and payload.get("sub"):
-            return str(payload["sub"])
-
-    # 2. Isolated Guest User if guest ID header provided
-    guest_id = request.headers.get("x-guest-id") or request.headers.get("X-Guest-ID")
-    if guest_id and guest_id.strip():
-        clean_guest = guest_id.strip()[:64]
-        return f"guest_{clean_guest}" if not clean_guest.startswith("guest_") else clean_guest
-
-    return "guest_user"
-
-
-def get_optional_user(
-    request: Request,
-    creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
-) -> Optional[str]:
-    """
-    Like get_current_user but returns user identifier.
-    """
-    return get_current_user(request, creds)
+get_optional_user = get_current_user

@@ -73,16 +73,16 @@ export default function HeroUpload({
       <div className="text-center max-w-3xl mx-auto mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-semibold mb-4">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Evidence-Linked Contract Risk Auditing</span>
+          <span>VENDOR & SAAS CONTRACTS</span>
         </div>
         <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight sm:leading-tight mb-4">
-          Understand Every Clause.{' '}
+          Know what comes next.{' '}
           <span className="bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400 bg-clip-text text-transparent">
-            Spot Risks Before They Cost You.
+            Act before the deadline.
           </span>
         </h1>
         <p className="text-base sm:text-lg text-slate-300 leading-relaxed">
-          Analyze business agreements, identify potential risks, track obligations, and generate evidence-backed reports with page-level verification.
+          Upload an agreement, review the source passages, and turn important deadlines into owned actions and reminders.
         </p>
       </div>
 
@@ -131,7 +131,7 @@ export default function HeroUpload({
               </p>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700 text-xs text-slate-300">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Zero Hallucination Mode: Every quote verified against source pages</span>
+                <span>Source-linked findings. Confirm interpretations and dates before acting.</span>
               </div>
             </div>
           )}
@@ -187,7 +187,7 @@ export default function HeroUpload({
           <div>
             <h4 className="text-sm font-semibold text-white mb-1">Evidence-Linked Verification</h4>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Every identified risk and obligation is quoted verbatim and matched directly against document page text.
+              Check supporting passages and see whether quotations match the extracted source text.
             </p>
           </div>
         </div>

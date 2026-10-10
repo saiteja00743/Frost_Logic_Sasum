@@ -88,5 +88,5 @@ class AnalysisResult(BaseModel):
 class AnalyzeRequest(BaseModel):
     document_id: str
     api_key: Optional[str] = None
-    provider: Optional[Literal["openrouter", "openai", "gemini", "auto"]] = "auto"
+    provider: Optional[Literal["openrouter", "openai", "gemini", "groq", "auto"]] = "auto"
     custom_model: Optional[str] = None

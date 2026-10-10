@@ -2,6 +2,7 @@
 const RENDER_BACKEND_URL = 'https://frost-logic-sasum.onrender.com';
 
 export function getApiBase() {
+  if (import.meta.env.DEV) return '/api';
   // 1. User-configured URL from Settings modal takes highest priority
   const custom = typeof window !== 'undefined' ? localStorage.getItem('clauseguard_api_base_url') : '';
   if (custom && custom.trim()) {
@@ -16,25 +17,30 @@ export function getApiBase() {
   return RENDER_BACKEND_URL + '/api';
 }
 
-function getGuestId() {
-  if (typeof window === 'undefined') return 'guest_default';
-  let gid = localStorage.getItem('clauseguard_guest_id');
-  if (!gid) {
-    gid = 'guest_' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 12));
-    localStorage.setItem('clauseguard_guest_id', gid);
+let demoPromise;
+async function demoToken() {
+  const saved = JSON.parse(localStorage.getItem('clauseguard_demo_session') || 'null');
+  if (saved?.access_token && Date.parse(saved.expires_at) > Date.now()) return saved.access_token;
+  if (!demoPromise) {
+    demoPromise = fetch(`${getApiBase()}/session/demo`, { method: 'POST' })
+      .then(async res => {
+        if (!res.ok) throw new Error('Demo is unavailable. Please sign in to your account.');
+        const session = await res.json();
+        localStorage.setItem('clauseguard_demo_session', JSON.stringify(session));
+        return session.access_token;
+      }).finally(() => { demoPromise = null; });
   }
-  return gid;
+  return demoPromise;
 }
-
-/**
- * Build auth headers from an access token or guest session.
- * Pass getAccessToken() from useAuth() as the token provider.
- */
-function authHeaders(token) {
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
-  }
-  return { 'X-Guest-ID': getGuestId() };
+async function authHeaders(token) {
+  return { Authorization: `Bearer ${token || await demoToken()}` };
+}
+async function downloadBlob(res, filename) {
+  if (!res.ok) throw new Error('Download failed. Refresh your session and try again.');
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function createApi(getToken) {
@@ -52,7 +58,7 @@ export function createApi(getToken) {
       formData.append('file', file);
       const res = await fetch(`${getApiBase()}/documents`, {
         method: 'POST',
-        headers: authHeaders(token()),
+        headers: await authHeaders(token()),
         body: formData,
       });
       if (!res.ok) {
@@ -64,7 +70,7 @@ export function createApi(getToken) {
 
     async getDocument(docId) {
       const res = await fetch(`${getApiBase()}/documents/${docId}`, {
-        headers: authHeaders(token()),
+        headers: await authHeaders(token()),
       });
       if (!res.ok) throw new Error('Failed to retrieve document');
       return res.json();
@@ -75,7 +81,7 @@ export function createApi(getToken) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(token()),
+          ...await authHeaders(token()),
         },
         body: JSON.stringify({
           document_id: docId,
@@ -93,22 +99,36 @@ export function createApi(getToken) {
 
     async getAnalysis(analysisId) {
       const res = await fetch(`${getApiBase()}/analyses/${analysisId}`, {
-        headers: authHeaders(token()),
+        headers: await authHeaders(token()),
       });
       if (!res.ok) throw new Error('Failed to retrieve analysis');
       return res.json();
     },
 
-    getReportDownloadUrl(analysisId) {
-      // Append token as query param for direct download links
-      const t = token();
-      const base = `${getApiBase()}/analyses/${analysisId}/report`;
-      return t ? `${base}?token=${t}` : base;
+    async downloadReport(analysisId) {
+      const res = await fetch(`${getApiBase()}/analyses/${analysisId}/report`, { headers: await authHeaders(token()) });
+      return downloadBlob(res, 'ClauseGuard-report.pdf');
+    },
+    async workspace(path = '/workspace', method = 'GET', body) {
+      const res = await fetch(`${getApiBase()}${path}`, {
+        method, headers: { 'Content-Type': 'application/json', ...await authHeaders(token()) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        if (res.status === 401 && !token()) localStorage.removeItem('clauseguard_demo_session');
+        throw new Error(typeof error.detail === 'string' ? error.detail : 'Please check the form fields and try again.');
+      }
+      return res.json();
+    },
+    async downloadCalendar(actionId) {
+      const res = await fetch(`${getApiBase()}/actions/${actionId}/calendar`, { headers: await authHeaders(token()) });
+      return downloadBlob(res, 'contract-deadline.ics');
     },
 
     async getHistory() {
       const res = await fetch(`${getApiBase()}/history`, {
-        headers: authHeaders(token()),
+        headers: await authHeaders(token()),
       });
       if (!res.ok) throw new Error('Failed to fetch history');
       return res.json();
@@ -125,7 +145,7 @@ export function createApi(getToken) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders(token()),
+          ...await authHeaders(token()),
         },
         body: JSON.stringify({
           api_key: options.apiKey || null,

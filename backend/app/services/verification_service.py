@@ -78,7 +78,7 @@ class VerificationService:
                     segment = p_norm[max(0, idx - 20) : min(len(p_norm), idx + window_len)]
                     sim = difflib.SequenceMatcher(None, clean_quote_lower, segment.lower()).ratio()
                     if sim >= 0.65:
-                        return "verified", p_num, segment[:250], round(sim, 2)
+                        return "needs_review", p_num, segment[:250], round(sim, 2)
 
         # 4. Longest common substring fallback
         best_ratio = 0.0
@@ -97,7 +97,7 @@ class VerificationService:
                         best_snippet = sent
 
         if best_ratio >= 0.82:
-            return "verified", best_page, best_snippet, round(best_ratio, 2)
+            return "needs_review", best_page, best_snippet, round(best_ratio, 2)
 
         return "unverified", claimed_page, None, 0.0
 
@@ -152,7 +152,8 @@ class VerificationService:
             "verified_count": verified_items,
             "unverified_count": unverified_items,
             "verification_rate_percent": rate,
-            "audit_passed": rate >= 70.0
+            "audit_passed": total_items > 0 and verified_items == total_items,
+            "meaning": "Source text matching only; interpretation and dates require human review"
         }
 
         return analysis_data

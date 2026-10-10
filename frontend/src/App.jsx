@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ContractWorkspace, { DeadlineReview } from './components/ContractWorkspace';
 import Navbar from './components/Navbar';
 import HeroUpload from './components/HeroUpload';
 import ExecutiveSummaryCard from './components/ExecutiveSummaryCard';
@@ -22,6 +23,7 @@ function AppInner() {
   // Auth-aware API instance — re-created when token changes
   const api = React.useMemo(() => createApi(getAccessToken), [getAccessToken]);
 
+  const [view, setView] = useState('workspace');
   const [backendStatus, setBackendStatus] = useState('checking');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [documentData, setDocumentData] = useState(null);
@@ -93,6 +95,7 @@ function AppInner() {
 
       // Set analysis immediately so UI displays right away
       setAnalysisResult(analysis);
+      setView('analysis');
 
       // Fetch full document in background for modal viewer
       api.getDocument(docRes.document_id)
@@ -128,6 +131,7 @@ function AppInner() {
 
       // Set analysis immediately
       setAnalysisResult(analysis);
+      setView('analysis');
 
       // Fetch full doc in background
       api.getDocument(analysis.document_id)
@@ -158,6 +162,7 @@ function AppInner() {
         customModel: settings?.customModel ?? localStorage.getItem('clauseguard_model'),
       });
       setAnalysisResult(analysis);
+      setView('analysis');
     } catch (err) {
       console.error(err);
       setErrorMessage(err.message || 'Failed to re-analyze document.');
@@ -178,6 +183,7 @@ function AppInner() {
       const fullDoc = await api.getDocument(analysis.document_id);
       setDocumentData(fullDoc);
       setAnalysisResult(analysis);
+      setView('analysis');
     } catch (err) {
       console.error(err);
       setErrorMessage(err.message || 'Failed to load saved analysis.');
@@ -197,6 +203,7 @@ function AppInner() {
     setAnalysisResult(null);
     setDocumentData(null);
     setErrorMessage(null);
+    setView('upload');
   };
 
   return (
@@ -210,6 +217,12 @@ function AppInner() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <nav className="work-buttons mb-6" aria-label="Primary navigation">
+          <button className={view === 'workspace' ? 'work-primary' : 'work-secondary'} onClick={() => setView('workspace')}>Workspace</button>
+          <button className={view === 'upload' ? 'work-primary' : 'work-secondary'} onClick={handleReset}>Add contract</button>
+          {analysisResult && <button className={view === 'analysis' ? 'work-primary' : 'work-secondary'} onClick={() => setView('analysis')}>Contract review</button>}
+        </nav>
+        {isLoading && view !== 'upload' && <p role="status" className="work-callout">{loadingMessage}</p>}
         {/* Error banner */}
         {errorMessage && (
           <div className="max-w-4xl mx-auto mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs sm:text-sm flex items-start gap-3">
@@ -224,7 +237,18 @@ function AppInner() {
           </div>
         )}
 
-        {!analysisResult ? (
+        {view === 'workspace' ? (
+          <ContractWorkspace api={api} onUpload={handleReset} onOpenContract={async contract => {
+            if (contract.analysis_id) return handleSelectHistoryItem(contract.analysis_id);
+            setIsLoading(true); setLoadingMessage('Analyzing saved contract…');
+            try {
+              const result = await api.analyzeDocument(contract.id);
+              const doc = await api.getDocument(contract.id);
+              setAnalysisResult(result); setDocumentData(doc); setView('analysis');
+            } catch (err) { setErrorMessage(err.message); }
+            finally { setIsLoading(false); }
+          }} />
+        ) : view === 'upload' || !analysisResult ? (
           <HeroUpload
             onFileUpload={handleFileUpload}
             onSelectSample={handleSelectSample}
@@ -245,11 +269,14 @@ function AppInner() {
 
             <ExecutiveSummaryCard
               analysis={analysisResult}
+              onInspectQuote={handleInspectQuote}
               onOpenViewer={() => { setActiveViewerQuote(null); setIsViewerOpen(true); }}
               onOpenSettings={() => setIsSettingsOpen(true)}
               api={api}
             />
+            <DeadlineReview api={api} analysis={analysisResult} onInspectQuote={handleInspectQuote} />
             <RiskDashboard risks={analysisResult.risks || []} onInspectQuote={handleInspectQuote} />
+            <details className="work-panel mb-8"><summary className="cursor-pointer font-semibold mb-4">See all duties, dates and clauses</summary>
             <ObligationsTracker
               obligations={analysisResult.obligations || []}
               parties={analysisResult.parties || []}
@@ -259,6 +286,7 @@ function AppInner() {
               <DeadlinesTimeline deadlines={analysisResult.deadlines || []} onInspectQuote={handleInspectQuote} />
               <KeyClauses keyClauses={analysisResult.key_clauses || []} onInspectQuote={handleInspectQuote} />
             </div>
+            </details>
           </div>
         )}
       </main>
@@ -285,10 +313,15 @@ function AppInner() {
       />
 
       <footer className="w-full border-t border-slate-800/80 bg-slate-950/60 py-6 px-4 text-center text-xs text-slate-500">
-        <p>ClauseGuard AI • Built for 36-Hour Hackathon • For human assistance only, does not constitute legal advice.</p>
+        <p>ClauseGuard • Contract commitments, kept in view. Analysis supports human review and is not legal advice.</p>
       </footer>
     </div>
   );
+}
+
+function SessionApp() {
+  const { user } = useAuth();
+  return <AppInner key={user?.id || 'signed-out'} />;
 }
 
 // ── Root export wraps everything in providers ──────────────────────────────────
@@ -296,7 +329,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppInner />
+        <SessionApp />
       </AuthProvider>
     </ThemeProvider>
   );

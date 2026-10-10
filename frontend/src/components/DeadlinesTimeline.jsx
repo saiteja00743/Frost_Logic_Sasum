@@ -59,12 +59,12 @@ export default function DeadlinesTimeline({ deadlines = [], onInspectQuote }) {
                 {isVerified ? (
                   <span className="text-emerald-400 flex items-center gap-1 font-medium text-[11px]">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Verified Date</span>
+                    <span>Source text matched</span>
                   </span>
                 ) : (
                   <span className="text-amber-400 flex items-center gap-1 font-medium text-[11px]">
                     <AlertCircle className="w-3.5 h-3.5" />
-                    <span>Unverified Date</span>
+                    <span>Source needs review</span>
                   </span>
                 )}
 
