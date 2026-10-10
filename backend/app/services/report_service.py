@@ -1,4 +1,5 @@
 import io
+from xml.sax.saxutils import escape
 from typing import Dict, Any
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -134,8 +135,20 @@ class ReportService:
         elements.append(Spacer(1, 14))
 
         # Executive Summary
-        elements.append(Paragraph("1. Executive Summary", heading_style))
-        elements.append(Paragraph(analysis_data.get("document_summary", "No summary provided."), body_style))
+        elements.append(Paragraph("1. Simple summary", heading_style))
+        summary = analysis_data.get("plain_summary", {})
+        elements.append(Paragraph(escape(summary.get("overview", analysis_data.get("document_summary", "No summary provided."))), body_style))
+        if summary:
+            elements.append(Paragraph(escape(summary["result"]), body_style))
+            seconds = analysis_data.get("analysis_seconds")
+            elapsed = f"{seconds:.2f} seconds" if isinstance(seconds, (int, float)) else "Not recorded for this review"
+            elements.append(Paragraph(f"<b>Analysis time:</b> {elapsed}", body_style))
+            for key, title in [("money", "Money and rates"), ("timing", "Dates and time periods")]:
+                elements.append(Paragraph(f"<b>{title}</b>", body_style))
+                for fact in summary.get(key, []):
+                    elements.append(Paragraph(escape(f"{fact['label']}: {fact['value']} (page {fact['evidence']['page']})"), body_style))
+                if not summary.get(key):
+                    elements.append(Paragraph("No values detected. Check the source document.", body_style))
         elements.append(Spacer(1, 12))
 
         # Contracting Parties

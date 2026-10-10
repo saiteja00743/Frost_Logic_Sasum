@@ -1,6 +1,6 @@
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from ..database.db import list_analyses, save_document, get_document, save_analysis
 from ..services.pdf_service import PDFService
 from ..services.analysis_service import AnalysisService
@@ -28,7 +28,7 @@ SAMPLE_DOCS_DIR = get_sample_docs_dir()
 
 @router.get("/history")
 def get_analysis_history(
-    limit: int = 20,
+    limit: int = Query(default=20, ge=1, le=200),
     user_id: str = Depends(get_current_user),
 ):
     """Return the authenticated user's analysis history."""

@@ -21,11 +21,11 @@ export default function RiskDashboard({ risks = [], onInspectQuote }) {
           <div className="flex items-center gap-2 mb-1">
             <ShieldAlert className="w-5 h-5 text-rose-400" />
             <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              Evidence-Linked Risk Analysis
+              Things to check before you agree
             </h3>
           </div>
           <p className="text-xs text-slate-400">
-            Every risk finding is paired with verbatim document evidence, page location, and verification status.
+            A simple explanation, a next step, and the source passage if you want to check it.
           </p>
         </div>
 
@@ -110,7 +110,7 @@ export default function RiskDashboard({ risks = [], onInspectQuote }) {
                             : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                         }`}
                       >
-                        {risk.severity} Risk
+                        {isHigh ? 'Check first' : isMed ? 'Check carefully' : 'Worth checking'}
                       </span>
                       <span className="text-xs text-slate-400 font-medium">
                         {risk.category || 'General'}
@@ -126,7 +126,7 @@ export default function RiskDashboard({ risks = [], onInspectQuote }) {
                     {isVerified ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Verified (Page {ev.page || '—'})</span>
+                        <span>Source matched (Page {ev.page || '—'})</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -143,7 +143,8 @@ export default function RiskDashboard({ risks = [], onInspectQuote }) {
                 </p>
 
                 {/* Verbatim Supporting Evidence Box */}
-                <div className="rounded-xl bg-slate-950/70 border border-slate-800/90 p-3.5 sm:p-4 mb-4">
+                <details className="rounded-xl bg-slate-950/70 border border-slate-800/90 p-3.5 sm:p-4 mb-4">
+                  <summary className="text-xs text-sky-400 cursor-pointer mb-2">Show the original contract wording</summary>
                   <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2 font-mono">
                     <span className="font-semibold text-teal-400 flex items-center gap-1">
                       <span>Source Quote</span>
@@ -160,13 +161,13 @@ export default function RiskDashboard({ risks = [], onInspectQuote }) {
                   <blockquote className="text-xs text-slate-200 italic font-mono leading-relaxed border-l-2 border-teal-500/50 pl-3">
                     "{ev.quote}"
                   </blockquote>
-                </div>
+                </details>
 
                 {/* Recommended Action */}
                 <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-900/60 border border-slate-800/60 text-xs">
                   <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-semibold text-slate-200">Recommended Action: </span>
+                    <span className="font-semibold text-slate-200">Next step: </span>
                     <span className="text-slate-300">{risk.recommended_action}</span>
                   </div>
                 </div>

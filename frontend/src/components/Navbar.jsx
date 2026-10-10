@@ -47,7 +47,7 @@ export default function Navbar({
                 AI
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 hidden sm:block">Legal Document &amp; Risk Intelligence</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 hidden sm:block">Vendor contracts &amp; renewal actions</p>
           </div>
         </div>
 

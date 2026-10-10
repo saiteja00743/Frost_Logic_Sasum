@@ -115,12 +115,12 @@ export default function ObligationsTracker({ obligations = [], parties = [], onI
                     {isVerified ? (
                       <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Verified</span>
+                        <span>Source text matched</span>
                       </span>
                     ) : (
                       <span className="text-[11px] font-medium text-amber-400 flex items-center gap-1">
                         <AlertCircle className="w-3.5 h-3.5" />
-                        <span>Unverified</span>
+                        <span>Source needs review</span>
                       </span>
                     )}
 

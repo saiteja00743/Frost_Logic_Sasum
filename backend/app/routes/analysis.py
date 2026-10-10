@@ -5,6 +5,7 @@ from ..schemas.models import AnalyzeRequest
 from ..database.db import get_document, save_analysis, get_analysis
 from ..services.analysis_service import AnalysisService
 from ..services.report_service import ReportService
+from ..services.plain_summary_service import build_plain_summary, simplify_risks
 from ..auth.deps import get_current_user, _decode_token
 
 router = APIRouter(prefix="/api", tags=["analysis"])
@@ -31,20 +32,16 @@ async def analyze_document(
             provider=request.provider,
             custom_model=request.custom_model,
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=502, detail="Analysis failed. Please try again.")
 
     analysis_id = str(uuid.uuid4())
-    try:
-        save_analysis(
-            analysis_id=analysis_id,
-            document_id=request.document_id,
-            result=analysis_data,
-            engine_used=analysis_data.get("engine_used", "ClauseGuard Engine"),
-            user_id=user_id,
-        )
-    except Exception as save_err:
-        print(f"[ClauseGuard AI] Warning: save_analysis error (non-fatal): {save_err}")
+    save_analysis(
+        analysis_id=analysis_id, document_id=request.document_id, result=analysis_data,
+        engine_used=analysis_data.get("engine_used", "ClauseGuard Engine"), user_id=user_id,
+    )
 
     analysis_data["analysis_id"] = analysis_id
 
@@ -59,27 +56,28 @@ def get_analysis_result(
     data = get_analysis(analysis_id, user_id=user_id)
     if not data:
         raise HTTPException(status_code=404, detail="Analysis result not found.")
+    doc = get_document(data["document_id"], user_id=user_id)
+    if doc:
+        if "Heuristic" in data.get("engine_used", ""):
+            simplify_risks(data)
+        data["plain_summary"] = build_plain_summary(data, doc["pages"])
     return data
 
 
 @router.get("/analyses/{analysis_id}/report")
 def download_pdf_report(
     analysis_id: str,
-    user_id: Optional[str] = Depends(get_current_user),
-    token: Optional[str] = Query(default=None),
+    user_id: str = Depends(get_current_user),
 ):
-    # Allow token via query param for direct browser download links
-    if not user_id and token:
-        try:
-            payload = _decode_token(token)
-            user_id = payload.get("sub")
-        except Exception:
-            pass
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Authentication required.")
     data = get_analysis(analysis_id, user_id=user_id)
     if not data:
         raise HTTPException(status_code=404, detail="Analysis result not found.")
+
+    doc = get_document(data["document_id"], user_id=user_id)
+    if doc:
+        if "Heuristic" in data.get("engine_used", ""):
+            simplify_risks(data)
+        data["plain_summary"] = build_plain_summary(data, doc["pages"])
 
     try:
         pdf_bytes = ReportService.generate_pdf_report(data)

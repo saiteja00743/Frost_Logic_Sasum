@@ -69,6 +69,7 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     localStorage.removeItem('clauseguard_guest_session');
+    localStorage.removeItem('clauseguard_demo_session');
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.auth.signOut();

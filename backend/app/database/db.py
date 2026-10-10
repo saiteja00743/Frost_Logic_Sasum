@@ -7,6 +7,7 @@ ensuring zero-downtime deployment on Render/local environments without requiring
 import os
 import json
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -23,7 +24,7 @@ if USE_SUPABASE:
         _supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     except Exception as e:
         print(f"[ClauseGuard AI] Supabase initialization failed ({e}), falling back to SQLite.")
-        USE_SUPABASE = False
+        raise RuntimeError("Configured Supabase storage could not initialize") from e
 
 # ── SQLite Setup (Zero-config fallback) ─────────────────────────────────────────
 _data_dir = Path(os.environ.get("DATA_DIR", str(Path(__file__).resolve().parent.parent.parent / "data")))
@@ -31,20 +32,26 @@ _data_dir.mkdir(parents=True, exist_ok=True)
 DB_PATH = _data_dir / "clauseguard.db"
 
 
-def _get_sqlite_conn() -> sqlite3.Connection:
+@contextmanager
+def _get_sqlite_conn():
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def init_db() -> None:
     if USE_SUPABASE and _supabase_client:
         try:
             _supabase_client.table("documents").select("id").limit(1).execute()
-            print("[ClauseGuard AI] Connected to Supabase Database ✓")
+            print("[ClauseGuard AI] Connected to Supabase Database")
             return
         except Exception as e:
             print(f"[ClauseGuard AI] Supabase test query failed: {e}")
+            raise
 
     # Fallback to SQLite initialization
     with _get_sqlite_conn() as conn:
@@ -75,8 +82,12 @@ def init_db() -> None:
                 FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
             )
         """)
+        for table in ("documents", "analyses"):
+            columns = {row[1] for row in cursor.execute(f"PRAGMA table_info({table})")}
+            if "user_id" not in columns:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN user_id TEXT DEFAULT 'guest_user'")
         conn.commit()
-    print("[ClauseGuard AI] SQLite Database initialized (Zero-config mode) ✓")
+    print("[ClauseGuard AI] SQLite Database initialized (Zero-config mode)")
 
 
 # ─────────────────────── Documents ────────────────────────────────────────────
@@ -108,6 +119,7 @@ def save_document(
             return
         except Exception as e:
             print(f"[ClauseGuard AI] Supabase save_document failed ({e}), falling back to SQLite.")
+            raise
 
     # SQLite
     try:
@@ -130,12 +142,13 @@ def save_document(
             conn.commit()
     except Exception as e:
         print(f"[ClauseGuard AI] SQLite save_document error: {e}")
+        raise
 
 
 def get_document(doc_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     if USE_SUPABASE and _supabase_client:
         try:
-            query = _supabase_client.table("documents").select("*").eq("id", doc_id)
+            query = _supabase_client.table("documents").select("*").eq("id", doc_id).eq("user_id", user_id or "guest_user")
             res = query.maybe_single().execute()
             if res and res.data:
                 row = res.data
@@ -151,12 +164,13 @@ def get_document(doc_id: str, user_id: Optional[str] = None) -> Optional[Dict[st
                 }
         except Exception as e:
             print(f"[ClauseGuard AI] Supabase get_document error: {e}, falling back to SQLite.")
+            raise
 
     # SQLite
     try:
         with _get_sqlite_conn() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
+            cursor.execute("SELECT * FROM documents WHERE id = ? AND user_id = ?", (doc_id, user_id or "guest_user"))
             row = cursor.fetchone()
             if not row:
                 return None
@@ -172,6 +186,7 @@ def get_document(doc_id: str, user_id: Optional[str] = None) -> Optional[Dict[st
             }
     except Exception as e:
         print(f"[ClauseGuard AI] SQLite get_document error: {e}")
+        raise
         return None
 
 
@@ -200,6 +215,7 @@ def save_analysis(
             return
         except Exception as e:
             print(f"[ClauseGuard AI] Supabase save_analysis failed ({e}), falling back to SQLite.")
+            raise
 
     # SQLite
     try:
@@ -221,11 +237,12 @@ def save_analysis(
             conn.commit()
     except Exception as e:
         print(f"[ClauseGuard AI] SQLite save_analysis error: {e}")
+        raise
 
 
 def get_analysis(analysis_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     if USE_SUPABASE and _supabase_client:
-        query = _supabase_client.table("analyses").select("*").eq("id", analysis_id)
+        query = _supabase_client.table("analyses").select("*").eq("id", analysis_id).eq("user_id", user_id or "guest_user")
         res = query.maybe_single().execute()
         if not res or not res.data:
             return None
@@ -239,7 +256,7 @@ def get_analysis(analysis_id: str, user_id: Optional[str] = None) -> Optional[Di
     # SQLite
     with _get_sqlite_conn() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,))
+        cursor.execute("SELECT * FROM analyses WHERE id = ? AND user_id = ?", (analysis_id, user_id or "guest_user"))
         row = cursor.fetchone()
         if not row:
             return None
@@ -259,8 +276,7 @@ def get_latest_analysis_for_doc(document_id: str, user_id: Optional[str] = None)
             .order("created_at", desc=True)
             .limit(1)
         )
-        if user_id:
-            query = query.eq("user_id", user_id)
+        query = query.eq("user_id", user_id or "guest_user")
         res = query.execute()
         if not res or not res.data:
             return None
@@ -276,7 +292,7 @@ def get_latest_analysis_for_doc(document_id: str, user_id: Optional[str] = None)
         if user_id:
             cursor.execute("SELECT * FROM analyses WHERE document_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 1", (document_id, user_id))
         else:
-            cursor.execute("SELECT * FROM analyses WHERE document_id = ? ORDER BY created_at DESC LIMIT 1", (document_id,))
+            cursor.execute("SELECT * FROM analyses WHERE document_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 1", (document_id, "guest_user"))
         row = cursor.fetchone()
         if not row:
             return None
@@ -331,3 +347,27 @@ def list_analyses(limit: int = 20, user_id: Optional[str] = None) -> List[Dict[s
         """, (user_id, limit))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
+
+
+def list_contracts(user_id: str):
+    if USE_SUPABASE and _supabase_client:
+        rows = []
+        offset = 0
+        while True:
+            batch = (_supabase_client.table("documents")
+                     .select("id,filename,total_pages,created_at").eq("user_id", user_id)
+                     .order("created_at", desc=True).range(offset, offset + 499).execute().data or [])
+            rows.extend(batch)
+            if len(batch) < 500:
+                break
+            offset += 500
+    else:
+        with _get_sqlite_conn() as conn:
+            rows = [dict(r) for r in conn.execute(
+                "SELECT id,filename,total_pages,created_at FROM documents WHERE user_id=? ORDER BY created_at DESC", (user_id,))]
+    for row in rows:
+        analysis = get_latest_analysis_for_doc(row["id"], user_id)
+        row["analysis_id"] = analysis.get("analysis_id") if analysis else None
+        row["contract_type"] = analysis.get("contract_type", "Agreement") if analysis else "Awaiting analysis"
+        row["deadline_count"] = len(analysis.get("deadlines", [])) if analysis else 0
+    return rows
