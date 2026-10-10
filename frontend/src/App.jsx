@@ -221,6 +221,7 @@ function AppInner() {
             <ExecutiveSummaryCard
               analysis={analysisResult}
               onOpenViewer={() => { setActiveViewerQuote(null); setIsViewerOpen(true); }}
+              api={api}
             />
             <RiskDashboard risks={analysisResult.risks || []} onInspectQuote={handleInspectQuote} />
             <ObligationsTracker
@@ -228,7 +229,7 @@ function AppInner() {
               parties={analysisResult.parties || []}
               onInspectQuote={handleInspectQuote}
             />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DeadlinesTimeline deadlines={analysisResult.deadlines || []} onInspectQuote={handleInspectQuote} />
               <KeyClauses keyClauses={analysisResult.key_clauses || []} onInspectQuote={handleInspectQuote} />
             </div>
@@ -249,9 +250,15 @@ function AppInner() {
         onSaveSettings={handleReanalyze}
         hasDocument={Boolean(analysisResult)}
       />
-      <HistoryDrawer isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onSelectAnalysis={handleSelectHistoryItem} />
+      <HistoryDrawer
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        onSelectAnalysis={handleSelectHistoryItem}
+        api={api}
+        isGuest={!user || user.id === 'guest'}
+      />
 
-      <footer className="w-full border-t border-slate-800/80 bg-slate-950/60 py-6 text-center text-xs text-slate-500">
+      <footer className="w-full border-t border-slate-800/80 bg-slate-950/60 py-6 px-4 text-center text-xs text-slate-500">
         <p>ClauseGuard AI • Built for 36-Hour Hackathon • For human assistance only, does not constitute legal advice.</p>
       </footer>
     </div>

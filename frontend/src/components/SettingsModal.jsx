@@ -79,8 +79,8 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings, hasDocu
   const currentInfo = getProviderInfo();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-      <div className="w-full max-w-lg rounded-2xl glass-panel border border-slate-700/80 p-6 sm:p-7 shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md">
+      <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl glass-panel border border-slate-700/80 p-5 sm:p-6 lg:p-7 shadow-2xl relative max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400">

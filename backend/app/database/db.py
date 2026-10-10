@@ -129,7 +129,7 @@ def save_document(
 def get_document(doc_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     if USE_SUPABASE and _supabase_client:
         query = _supabase_client.table("documents").select("*").eq("id", doc_id)
-        if user_id and user_id != "guest_user":
+        if user_id:
             query = query.eq("user_id", user_id)
         res = query.maybe_single().execute()
         if not res or not res.data:
@@ -149,7 +149,7 @@ def get_document(doc_id: str, user_id: Optional[str] = None) -> Optional[Dict[st
     # SQLite
     with _get_sqlite_conn() as conn:
         cursor = conn.cursor()
-        if user_id and user_id != "guest_user":
+        if user_id:
             cursor.execute("SELECT * FROM documents WHERE id = ? AND user_id = ?", (doc_id, user_id))
         else:
             cursor.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
@@ -213,7 +213,7 @@ def save_analysis(
 def get_analysis(analysis_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     if USE_SUPABASE and _supabase_client:
         query = _supabase_client.table("analyses").select("*").eq("id", analysis_id)
-        if user_id and user_id != "guest_user":
+        if user_id:
             query = query.eq("user_id", user_id)
         res = query.maybe_single().execute()
         if not res or not res.data:
@@ -228,7 +228,7 @@ def get_analysis(analysis_id: str, user_id: Optional[str] = None) -> Optional[Di
     # SQLite
     with _get_sqlite_conn() as conn:
         cursor = conn.cursor()
-        if user_id and user_id != "guest_user":
+        if user_id:
             cursor.execute("SELECT * FROM analyses WHERE id = ? AND user_id = ?", (analysis_id, user_id))
         else:
             cursor.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,))
@@ -251,7 +251,7 @@ def get_latest_analysis_for_doc(document_id: str, user_id: Optional[str] = None)
             .order("created_at", desc=True)
             .limit(1)
         )
-        if user_id and user_id != "guest_user":
+        if user_id:
             query = query.eq("user_id", user_id)
         res = query.execute()
         if not res or not res.data:
@@ -265,7 +265,7 @@ def get_latest_analysis_for_doc(document_id: str, user_id: Optional[str] = None)
     # SQLite
     with _get_sqlite_conn() as conn:
         cursor = conn.cursor()
-        if user_id and user_id != "guest_user":
+        if user_id:
             cursor.execute("SELECT * FROM analyses WHERE document_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 1", (document_id, user_id))
         else:
             cursor.execute("SELECT * FROM analyses WHERE document_id = ? ORDER BY created_at DESC LIMIT 1", (document_id,))
@@ -279,15 +279,18 @@ def get_latest_analysis_for_doc(document_id: str, user_id: Optional[str] = None)
 
 
 def list_analyses(limit: int = 20, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    # Strict per-user isolation: if no user_id is provided, never expose any analyses
+    if not user_id:
+        return []
+
     if USE_SUPABASE and _supabase_client:
         query = (
             _supabase_client.table("analyses")
             .select("id, document_id, engine_used, risk_score, contract_type, created_at, documents(filename, total_pages)")
+            .eq("user_id", user_id)
             .order("created_at", desc=True)
             .limit(limit)
         )
-        if user_id and user_id != "guest_user":
-            query = query.eq("user_id", user_id)
         res = query.execute()
         rows = res.data or []
 
@@ -309,24 +312,14 @@ def list_analyses(limit: int = 20, user_id: Optional[str] = None) -> List[Dict[s
     # SQLite
     with _get_sqlite_conn() as conn:
         cursor = conn.cursor()
-        if user_id and user_id != "guest_user":
-            cursor.execute("""
-                SELECT a.id, a.document_id, a.engine_used, a.risk_score, a.contract_type, a.created_at,
-                       d.filename, d.total_pages
-                FROM analyses a
-                JOIN documents d ON a.document_id = d.id
-                WHERE a.user_id = ?
-                ORDER BY a.created_at DESC
-                LIMIT ?
-            """, (user_id, limit))
-        else:
-            cursor.execute("""
-                SELECT a.id, a.document_id, a.engine_used, a.risk_score, a.contract_type, a.created_at,
-                       d.filename, d.total_pages
-                FROM analyses a
-                JOIN documents d ON a.document_id = d.id
-                ORDER BY a.created_at DESC
-                LIMIT ?
-            """, (limit,))
+        cursor.execute("""
+            SELECT a.id, a.document_id, a.engine_used, a.risk_score, a.contract_type, a.created_at,
+                   d.filename, d.total_pages
+            FROM analyses a
+            JOIN documents d ON a.document_id = d.id
+            WHERE a.user_id = ?
+            ORDER BY a.created_at DESC
+            LIMIT ?
+        """, (user_id, limit))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]

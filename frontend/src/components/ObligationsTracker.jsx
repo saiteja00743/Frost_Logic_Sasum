@@ -11,7 +11,7 @@ export default function ObligationsTracker({ obligations = [], parties = [], onI
 
   return (
     <div className="mb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <UserCheck className="w-5 h-5 text-teal-400" />
@@ -24,33 +24,35 @@ export default function ObligationsTracker({ obligations = [], parties = [], onI
           </p>
         </div>
 
-        {/* Filter by Party */}
+        {/* Filter by Party — scrollable on mobile */}
         {parties.length > 0 && (
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800">
-            <button
-              onClick={() => setSelectedParty('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                selectedParty === 'all'
-                  ? 'bg-slate-800 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              All Parties ({obligations.length})
-            </button>
-            {parties.map((p, idx) => (
+          <div className="overflow-x-auto pb-1 -mx-1 px-1">
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800 w-max min-w-full sm:w-auto sm:min-w-0">
               <button
-                key={idx}
-                onClick={() => setSelectedParty(p.name)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition truncate max-w-[150px] ${
-                  selectedParty === p.name
-                    ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+                onClick={() => setSelectedParty('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
+                  selectedParty === 'all'
+                    ? 'bg-slate-800 text-white shadow'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
-                title={p.name}
               >
-                {p.name.split(' ')[0]}
+                All Parties ({obligations.length})
               </button>
-            ))}
+              {parties.map((p, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedParty(p.name)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap max-w-[150px] truncate ${
+                    selectedParty === p.name
+                      ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={p.name}
+                >
+                  {p.name.split(' ')[0]}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -70,7 +72,7 @@ export default function ObligationsTracker({ obligations = [], parties = [], onI
             return (
               <div
                 key={item.id}
-                className="glass-card glass-card-hover rounded-xl p-4 sm:p-5 border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                className="glass-card glass-card-hover rounded-xl p-4 sm:p-5 border border-slate-800/80 flex flex-col gap-3"
               >
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -86,17 +88,17 @@ export default function ObligationsTracker({ obligations = [], parties = [], onI
                   <h4 className="text-sm font-semibold text-white mb-2 leading-snug">
                     {item.obligation}
                   </h4>
-                  <div className="text-xs text-slate-400 font-mono bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                  <div className="text-xs text-slate-400 font-mono bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80 break-words">
                     <span className="text-teal-400 font-semibold mr-1.5">Page {ev.page || '—'}:</span>
                     <span className="italic">"{ev.quote}"</span>
                   </div>
                 </div>
 
-                {/* Deadline & Verification Info (Right side) */}
-                <div className="flex md:flex-col items-center md:items-end justify-between gap-3 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/80">
+                {/* Deadline & Verification Info */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
                   {/* Deadline Pill */}
                   <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span
                       className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${
                         isDateNeeded
@@ -108,7 +110,7 @@ export default function ObligationsTracker({ obligations = [], parties = [], onI
                     </span>
                   </div>
 
-                  {/* Verification Pill */}
+                  {/* Verification Pill + Link */}
                   <div className="flex items-center gap-2">
                     {isVerified ? (
                       <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1">
@@ -124,7 +126,7 @@ export default function ObligationsTracker({ obligations = [], parties = [], onI
 
                     <button
                       onClick={() => onInspectQuote && onInspectQuote({ page: ev.page, quote: ev.quote })}
-                      className="text-xs text-sky-400 hover:text-sky-300 ml-2"
+                      className="text-xs text-sky-400 hover:text-sky-300 ml-1"
                       title="Inspect quotation in document text"
                     >
                       <ArrowRight className="w-4 h-4" />

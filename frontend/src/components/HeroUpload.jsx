@@ -93,7 +93,7 @@ export default function HeroUpload({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => !isLoading && fileInputRef.current?.click()}
-          className={`relative rounded-2xl border-2 border-dashed p-8 sm:p-12 text-center transition cursor-pointer ${
+          className={`relative rounded-2xl border-2 border-dashed p-6 sm:p-10 lg:p-12 text-center transition cursor-pointer ${
             isDragOver
               ? 'border-teal-400 bg-teal-500/10 shadow-xl shadow-teal-500/10'
               : 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900/90'

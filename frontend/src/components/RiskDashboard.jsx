@@ -16,7 +16,7 @@ export default function RiskDashboard({ risks = [], onInspectQuote }) {
   return (
     <div className="mb-10">
       {/* Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <ShieldAlert className="w-5 h-5 text-rose-400" />
@@ -29,51 +29,53 @@ export default function RiskDashboard({ risks = [], onInspectQuote }) {
           </p>
         </div>
 
-        {/* Severity Filter Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800">
-          <button
-            onClick={() => setActiveFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-              activeFilter === 'all'
-                ? 'bg-slate-800 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            All ({risks.length})
-          </button>
-          <button
-            onClick={() => setActiveFilter('high')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              activeFilter === 'high'
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                : 'text-rose-400 hover:text-rose-300'
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            High ({highCount})
-          </button>
-          <button
-            onClick={() => setActiveFilter('medium')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              activeFilter === 'medium'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                : 'text-amber-400 hover:text-amber-300'
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Medium ({medCount})
-          </button>
-          <button
-            onClick={() => setActiveFilter('low')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              activeFilter === 'low'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                : 'text-emerald-400 hover:text-emerald-300'
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Low ({lowCount})
-          </button>
+        {/* Severity Filter Tabs — scrollable on mobile */}
+        <div className="overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-800 w-max min-w-full sm:w-auto sm:min-w-0">
+            <button
+              onClick={() => setActiveFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
+                activeFilter === 'all'
+                  ? 'bg-slate-800 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              All ({risks.length})
+            </button>
+            <button
+              onClick={() => setActiveFilter('high')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap ${
+                activeFilter === 'high'
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  : 'text-rose-400 hover:text-rose-300'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+              High ({highCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('medium')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap ${
+                activeFilter === 'medium'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  : 'text-amber-400 hover:text-amber-300'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+              Medium ({medCount})
+            </button>
+            <button
+              onClick={() => setActiveFilter('low')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap ${
+                activeFilter === 'low'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  : 'text-emerald-400 hover:text-emerald-300'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              Low ({lowCount})
+            </button>
+          </div>
         </div>
       </div>
 

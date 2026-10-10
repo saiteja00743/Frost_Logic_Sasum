@@ -7,12 +7,25 @@ export function getApiBase() {
   return (envUrl ? envUrl.replace(/\/+$/, '') : '') + '/api';
 }
 
+function getGuestId() {
+  if (typeof window === 'undefined') return 'guest_default';
+  let gid = localStorage.getItem('clauseguard_guest_id');
+  if (!gid) {
+    gid = 'guest_' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 12));
+    localStorage.setItem('clauseguard_guest_id', gid);
+  }
+  return gid;
+}
+
 /**
- * Build auth headers from an access token.
+ * Build auth headers from an access token or guest session.
  * Pass getAccessToken() from useAuth() as the token provider.
  */
 function authHeaders(token) {
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return { 'X-Guest-ID': getGuestId() };
 }
 
 export function createApi(getToken) {

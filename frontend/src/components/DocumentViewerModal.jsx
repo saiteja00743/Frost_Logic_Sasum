@@ -106,52 +106,54 @@ export default function DocumentViewerModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
       <div className="w-full max-w-4xl h-[88vh] rounded-2xl glass-panel border border-slate-700/80 flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-white">
-                {documentData.filename || 'Extracted Document Text'}
-              </h3>
-              <p className="text-xs text-slate-400">
-                Source text extracted by PyMuPDF • Page {currentPage} of {totalPages}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Page navigation controls */}
-            <div className="flex items-center bg-slate-800/80 rounded-lg p-1 border border-slate-700">
-              <button
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="p-1 rounded text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Previous Page"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-xs font-semibold px-2 text-slate-200">
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="p-1 rounded text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Next Page"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-800 bg-slate-900/80">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-xs sm:text-sm font-bold text-white truncate">
+                  {documentData.filename || 'Extracted Document Text'}
+                </h3>
+                <p className="text-[10px] sm:text-xs text-slate-400">
+                  Page {currentPage} of {totalPages}
+                </p>
+              </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition"
-              title="Close Viewer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Page navigation controls */}
+              <div className="flex items-center bg-slate-800/80 rounded-lg p-1 border border-slate-700">
+                <button
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="p-1 rounded text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Previous Page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-semibold px-2 text-slate-200">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="p-1 rounded text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Next Page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <button
+                onClick={onClose}
+                className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+                title="Close Viewer"
+              >
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -174,10 +176,10 @@ export default function DocumentViewerModal({
         )}
 
         {/* Page Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-slate-950/70 select-text">
-          <div className="max-w-3xl mx-auto rounded-xl p-6 sm:p-8 bg-slate-900/40 border border-slate-800/80 shadow-inner">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-950/70 select-text">
+          <div className="max-w-3xl mx-auto rounded-xl p-4 sm:p-6 lg:p-8 bg-slate-900/40 border border-slate-800/80 shadow-inner">
             <div className="text-[11px] font-mono text-slate-400 pb-4 mb-4 border-b border-slate-800 flex items-center justify-between">
-              <span>DOCUMENT PAGE {currentPage} OF {totalPages}</span>
+              <span>PAGE {currentPage} OF {totalPages}</span>
               <span>{activePageObj.word_count || 0} WORDS</span>
             </div>
             {renderHighlightedContent(activePageObj.text)}
@@ -185,14 +187,14 @@ export default function DocumentViewerModal({
         </div>
 
         {/* Footer Page Selector Bar */}
-        <div className="px-6 py-3 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between text-xs text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <span>Jump to:</span>
+        <div className="px-4 sm:px-6 py-3 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between text-xs text-slate-400 gap-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto flex-1 pb-0.5">
+            <span className="shrink-0">Jump:</span>
             {pages.map((p) => (
               <button
                 key={p.page_number}
                 onClick={() => setCurrentPage(p.page_number)}
-                className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                className={`px-2 py-0.5 rounded text-xs font-semibold shrink-0 ${
                   currentPage === p.page_number
                     ? 'bg-teal-500 text-slate-950'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -204,7 +206,7 @@ export default function DocumentViewerModal({
           </div>
           <button
             onClick={onClose}
-            className="px-3 py-1 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 text-xs font-medium"
+            className="px-3 py-1 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 text-xs font-medium shrink-0"
           >
             Done
           </button>

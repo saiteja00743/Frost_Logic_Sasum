@@ -2,17 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { X, History, FileText, ArrowRight, RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 
-export default function HistoryDrawer({ isOpen, onClose, onSelectAnalysis }) {
+export default function HistoryDrawer({ isOpen, onClose, onSelectAnalysis, api: propApi, isGuest }) {
   const [historyItems, setHistoryItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const items = await api.getHistory();
-      setHistoryItems(items);
+      const apiInstance = propApi || api;
+      const items = await apiInstance.getHistory();
+      setHistoryItems(items || []);
     } catch (err) {
       console.error('Failed to load history:', err);
+      setHistoryItems([]);
     } finally {
       setLoading(false);
     }
@@ -22,17 +24,22 @@ export default function HistoryDrawer({ isOpen, onClose, onSelectAnalysis }) {
     if (isOpen) {
       fetchHistory();
     }
-  }, [isOpen]);
+  }, [isOpen, propApi]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/70 backdrop-blur-sm">
-      <div className="w-full max-w-md h-full bg-slate-900 border-l border-slate-800 p-6 flex flex-col shadow-2xl">
+      <div className="w-full sm:max-w-md h-full bg-slate-900 border-l border-slate-800 p-4 sm:p-6 flex flex-col shadow-2xl">
         <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
           <div className="flex items-center gap-2">
             <History className="w-5 h-5 text-sky-400" />
-            <h3 className="text-base font-bold text-white">Analysis History</h3>
+            <div>
+              <h3 className="text-base font-bold text-white">Analysis History</h3>
+              <p className="text-[10px] text-slate-400">
+                {isGuest ? 'Private to your guest session' : 'Your personal contracts'}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-1.5">
             <button

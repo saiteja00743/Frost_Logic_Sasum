@@ -40,20 +40,20 @@ export default function KeyClauses({ keyClauses = [], onInspectQuote }) {
                   {clause.summary}
                 </p>
 
-                <div className="rounded-lg bg-slate-950/60 p-2.5 border border-slate-800/60 text-xs text-slate-400 font-mono italic mb-3">
+                <div className="rounded-lg bg-slate-950/60 p-2.5 border border-slate-800/60 text-xs text-slate-400 font-mono italic mb-3 break-words">
                   "{ev.quote}"
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs">
-                <div className="text-slate-300">
+              <div className="pt-3 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="text-slate-300 min-w-0 flex-1">
                   <span className="font-semibold text-slate-400">Impact: </span>
-                  <span className="text-slate-200">{clause.impact}</span>
+                  <span className="text-slate-200 break-words">{clause.impact}</span>
                 </div>
 
                 <button
                   onClick={() => onInspectQuote && onInspectQuote({ page: ev.page, quote: ev.quote })}
-                  className="text-sky-400 hover:text-sky-300 ml-3 shrink-0 flex items-center gap-1 font-medium text-[11px]"
+                  className="text-sky-400 hover:text-sky-300 shrink-0 flex items-center gap-1 font-medium text-[11px]"
                 >
                   <span>Locate</span>
                   <ArrowRight className="w-3 h-3" />

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Shield, History, Settings, FileText, Sun, Moon, LogOut, ChevronDown } from "lucide-react";
+import { Shield, History, Settings, FileText, Sun, Moon, LogOut, ChevronDown, Menu, X } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -14,9 +14,11 @@ export default function Navbar({
   const { user, signOut } = useAuth();
   const isLight = theme === "light";
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     setProfileOpen(false);
+    setMobileMenuOpen(false);
     try {
       await signOut();
     } catch (e) {
@@ -30,29 +32,29 @@ export default function Navbar({
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
         {/* Brand */}
-        <div onClick={onReset} className="flex items-center gap-3 cursor-pointer group">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-sky-500 via-teal-400 to-emerald-400 p-[1px] shadow-lg shadow-teal-500/20 group-hover:shadow-teal-500/40 transition">
+        <div onClick={onReset} className="flex items-center gap-2.5 cursor-pointer group">
+          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-tr from-sky-500 via-teal-400 to-emerald-400 p-[1px] shadow-lg shadow-teal-500/20 group-hover:shadow-teal-500/40 transition shrink-0">
             <div className="h-full w-full bg-slate-950 rounded-[11px] flex items-center justify-center">
-              <Shield className="w-5 h-5 text-teal-400 group-hover:scale-110 transition-transform" />
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-teal-400 group-hover:scale-110 transition-transform" />
             </div>
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-lg text-white tracking-tight">ClauseGuard</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-base sm:text-lg text-white tracking-tight">ClauseGuard</span>
               <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">
                 AI
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block">Legal Document &amp; Risk Intelligence</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 hidden sm:block">Legal Document &amp; Risk Intelligence</p>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Desktop Actions */}
+        <div className="hidden md:flex items-center gap-2">
           {/* Health status badge */}
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 border border-slate-800 text-slate-300">
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900 border border-slate-800 text-slate-300">
             <span
               className={`w-2 h-2 rounded-full ${
                 backendStatus === "online"
@@ -78,19 +80,17 @@ export default function Navbar({
           <button
             onClick={onOpenHistory}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            title="Analysis History"
           >
             <History className="w-3.5 h-3.5 text-sky-400" />
-            <span className="hidden sm:inline">History</span>
+            <span>History</span>
           </button>
 
           <button
             onClick={onOpenSettings}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            title="LLM &amp; Engine Settings"
           >
             <Settings className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">AI Settings</span>
+            <span>AI Settings</span>
           </button>
 
           {/* Theme Toggle */}
@@ -99,7 +99,6 @@ export default function Navbar({
             id="theme-toggle-btn"
             title={isLight ? "Switch to Dark Mode" : "Switch to Light Mode"}
             className="theme-toggle-btn flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-300"
-            style={{ minWidth: "76px" }}
           >
             <span
               style={{
@@ -114,10 +113,10 @@ export default function Navbar({
                 <Moon className="w-3.5 h-3.5 text-sky-300" />
               )}
             </span>
-            <span className="hidden sm:inline">{isLight ? "Light" : "Dark"}</span>
+            <span>{isLight ? "Light" : "Dark"}</span>
           </button>
 
-          {/* ── User Profile Dropdown ───────────────────────── */}
+          {/* User Profile Dropdown */}
           {user && (
             <div className="relative">
               <button
@@ -138,7 +137,7 @@ export default function Navbar({
                     {shortName[0].toUpperCase()}
                   </div>
                 )}
-                <span className="text-xs text-slate-200 hidden sm:inline max-w-[80px] truncate">
+                <span className="text-xs text-slate-200 max-w-[80px] truncate">
                   {shortName}
                 </span>
                 <ChevronDown
@@ -148,12 +147,7 @@ export default function Navbar({
 
               {profileOpen && (
                 <>
-                  {/* Backdrop */}
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setProfileOpen(false)}
-                  />
-                  {/* Dropdown */}
+                  <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
                   <div className="absolute right-0 top-full mt-2 w-52 z-50 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl shadow-black/40 overflow-hidden">
                     <div className="px-4 py-3 border-b border-slate-800">
                       {avatar && (
@@ -181,7 +175,96 @@ export default function Navbar({
             </div>
           )}
         </div>
+
+        {/* Mobile right side: theme toggle + hamburger */}
+        <div className="flex md:hidden items-center gap-1.5">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg bg-slate-800/80 text-slate-200 border border-slate-700 transition"
+          >
+            {isLight ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-sky-300" />
+            )}
+          </button>
+
+          <button
+            onClick={() => setMobileMenuOpen((p) => !p)}
+            className="p-2 rounded-lg bg-slate-800/80 text-slate-200 border border-slate-700 transition"
+            aria-label="Toggle mobile menu"
+          >
+            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile Dropdown Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-800 bg-slate-950/95 backdrop-blur-md px-4 py-3 space-y-1.5">
+          <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 w-full">
+            <span
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                backendStatus === "online"
+                  ? "bg-emerald-400 animate-pulse"
+                  : "bg-amber-400"
+              }`}
+            />
+            <span>{backendStatus === "online" ? "Backend Ready" : "Connecting..."}</span>
+          </div>
+
+          {hasAnalysis && (
+            <button
+              onClick={() => { onReset(); setMobileMenuOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+            >
+              <FileText className="w-4 h-4 text-teal-400 shrink-0" />
+              <span>New Document</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => { onOpenHistory(); setMobileMenuOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+          >
+            <History className="w-4 h-4 text-sky-400 shrink-0" />
+            <span>Analysis History</span>
+          </button>
+
+          <button
+            onClick={() => { onOpenSettings(); setMobileMenuOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+          >
+            <Settings className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>AI Engine Settings</span>
+          </button>
+
+          {user && (
+            <div className="pt-2 border-t border-slate-800 mt-1">
+              <div className="flex items-center gap-3 px-2 py-2 mb-1">
+                {avatar ? (
+                  <img src={avatar} alt={displayName} className="w-8 h-8 rounded-full ring-1 ring-teal-500/40" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white">
+                    {shortName[0].toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{displayName}</p>
+                  <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition"
+              >
+                <LogOut className="w-4 h-4 shrink-0" />
+                <span>Sign out</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }
