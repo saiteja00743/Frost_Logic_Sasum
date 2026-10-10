@@ -1,9 +1,10 @@
 import uuid
 import os
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from ..services.pdf_service import PDFService, PDFProcessingError
 from ..database.db import save_document, get_document
+from ..auth.deps import get_current_user
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -12,8 +13,12 @@ _data_dir = Path(os.environ.get("DATA_DIR", str(Path(__file__).resolve().parent.
 UPLOAD_DIR = _data_dir / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+
 @router.post("")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+):
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Invalid file format. Only PDF files are supported.")
 
@@ -38,10 +43,6 @@ async def upload_document(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error while extracting PDF: {str(e)}")
 
-    if metadata.get("is_scanned_or_empty"):
-        # Still store it, but return notice
-        pass
-
     save_document(
         doc_id=doc_id,
         filename=file.filename,
@@ -50,6 +51,7 @@ async def upload_document(file: UploadFile = File(...)):
         word_count=metadata["total_words"],
         file_path=str(saved_path),
         pages_data=pages_data,
+        user_id=user_id,
     )
 
     return {
@@ -63,12 +65,16 @@ async def upload_document(file: UploadFile = File(...)):
         "pages_preview": [
             {"page_number": p["page_number"], "word_count": p["word_count"], "char_count": p["char_count"]}
             for p in pages_data
-        ]
+        ],
     }
 
+
 @router.get("/{doc_id}")
-def get_document_details(doc_id: str):
-    doc = get_document(doc_id)
+def get_document_details(
+    doc_id: str,
+    user_id: str = Depends(get_current_user),
+):
+    doc = get_document(doc_id, user_id=user_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found.")
     return doc

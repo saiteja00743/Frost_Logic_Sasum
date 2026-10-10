@@ -1,12 +1,13 @@
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
-from ..database.db import list_analyses, save_document, get_document
+from fastapi import APIRouter, HTTPException, Depends
+from ..database.db import list_analyses, save_document, get_document, save_analysis
 from ..services.pdf_service import PDFService
 from ..services.analysis_service import AnalysisService
-from ..database.db import save_analysis
+from ..auth.deps import get_current_user
 
 router = APIRouter(prefix="/api", tags=["history_and_samples"])
+
 
 # Resolve sample_documents directory robustly
 def get_sample_docs_dir() -> Path:
@@ -21,14 +22,22 @@ def get_sample_docs_dir() -> Path:
             return p
     return candidates[0]
 
+
 SAMPLE_DOCS_DIR = get_sample_docs_dir()
 
+
 @router.get("/history")
-def get_analysis_history(limit: int = 20):
-    return list_analyses(limit=limit)
+def get_analysis_history(
+    limit: int = 20,
+    user_id: str = Depends(get_current_user),
+):
+    """Return the authenticated user's analysis history."""
+    return list_analyses(limit=limit, user_id=user_id)
+
 
 @router.get("/samples")
 def get_available_samples():
+    """Sample contracts list — public, no auth required."""
     return [
         {
             "id": "saas_msa",
@@ -36,7 +45,7 @@ def get_available_samples():
             "type": "Master Services Agreement (MSA)",
             "description": "High-risk enterprise software agreement with aggressive 60-day auto-renewal, unilateral indemnity, and uncapped consequential exposures.",
             "pages": 4,
-            "highlight": "High Risk — Unilateral Indemnity & Auto-Renewal"
+            "highlight": "High Risk — Unilateral Indemnity & Auto-Renewal",
         },
         {
             "id": "commercial_lease",
@@ -44,7 +53,7 @@ def get_available_samples():
             "type": "Commercial Lease Agreement",
             "description": "Commercial tenancy lease with security deposit forfeiture, maintenance liability, late interest rates, and insurance requirements.",
             "pages": 3,
-            "highlight": "Medium Risk — Deposit Forfeiture & Maintenance"
+            "highlight": "Medium Risk — Deposit Forfeiture & Maintenance",
         },
         {
             "id": "mutual_nda",
@@ -52,12 +61,16 @@ def get_available_samples():
             "type": "Non-Disclosure Agreement (NDA)",
             "description": "Bilateral confidentiality agreement covering proprietary technical trade secrets, 5-year survival period, and non-solicitation.",
             "pages": 2,
-            "highlight": "Standard Risk — 5-Year Survival & Return of Data"
-        }
+            "highlight": "Standard Risk — 5-Year Survival & Return of Data",
+        },
     ]
 
+
 @router.post("/sample/load/{sample_key}")
-async def load_and_analyze_sample(sample_key: str):
+async def load_and_analyze_sample(
+    sample_key: str,
+    user_id: str = Depends(get_current_user),
+):
     sample_files = {
         "saas_msa": "CloudScale_Enterprise_SaaS_MSA.pdf",
         "commercial_lease": "MetroTower_Commercial_Office_Lease.pdf",
@@ -84,6 +97,7 @@ async def load_and_analyze_sample(sample_key: str):
         word_count=metadata["total_words"],
         file_path=str(pdf_path),
         pages_data=pages_data,
+        user_id=user_id,
     )
 
     analysis_data = await AnalysisService.analyze_document(
@@ -91,7 +105,7 @@ async def load_and_analyze_sample(sample_key: str):
         filename=filename,
         pages_data=pages_data,
         api_key=None,
-        provider="auto"
+        provider="auto",
     )
 
     analysis_id = str(uuid.uuid4())
@@ -99,8 +113,10 @@ async def load_and_analyze_sample(sample_key: str):
         analysis_id=analysis_id,
         document_id=doc_id,
         result=analysis_data,
-        engine_used=analysis_data.get("engine_used", "ClauseGuard Engine")
+        engine_used=analysis_data.get("engine_used", "ClauseGuard Engine"),
+        user_id=user_id,
     )
     analysis_data["analysis_id"] = analysis_id
+    analysis_data["document_id"] = doc_id
 
     return analysis_data
