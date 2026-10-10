@@ -5,15 +5,18 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings }) {
   const [provider, setProvider] = useState('auto');
   const [apiKey, setApiKey] = useState('');
   const [customModel, setCustomModel] = useState('');
+  const [backendUrl, setBackendUrl] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
     const savedProv = localStorage.getItem('clauseguard_provider') || 'auto';
     const savedKey = localStorage.getItem('clauseguard_api_key') || '';
     const savedModel = localStorage.getItem('clauseguard_model') || '';
+    const savedUrl = localStorage.getItem('clauseguard_api_base_url') || '';
     setProvider(savedProv);
     setApiKey(savedKey);
     setCustomModel(savedModel);
+    setBackendUrl(savedUrl);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -22,10 +25,12 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings }) {
     localStorage.setItem('clauseguard_provider', provider);
     localStorage.setItem('clauseguard_api_key', apiKey.trim());
     localStorage.setItem('clauseguard_model', customModel.trim());
+    localStorage.setItem('clauseguard_api_base_url', backendUrl.trim());
     onSaveSettings({
       provider,
       apiKey: apiKey.trim(),
       customModel: customModel.trim(),
+      backendUrl: backendUrl.trim(),
     });
     setSavedSuccess(true);
     setTimeout(() => {
@@ -149,6 +154,24 @@ export default function SettingsModal({ isOpen, onClose, onSaveSettings }) {
               onChange={(e) => setCustomModel(e.target.value)}
               className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono"
             />
+          </div>
+
+          {/* Backend API Base URL */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+              <span>Backend API Server URL (Render)</span>
+              <span className="text-[10px] text-slate-400">Optional</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. https://clauseguard-backend.onrender.com"
+              value={backendUrl}
+              onChange={(e) => setBackendUrl(e.target.value)}
+              className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-400 font-mono"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              If deploying on Vercel separately from Render, paste your Render backend URL here if not set via Vercel env.
+            </p>
           </div>
         </div>
 

@@ -1,4 +1,11 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '') + '/api';
+export function getApiBase() {
+  const custom = typeof window !== 'undefined' ? localStorage.getItem('clauseguard_api_base_url') : '';
+  if (custom && custom.trim()) {
+    return custom.trim().replace(/\/+$/, '') + '/api';
+  }
+  const envUrl = import.meta.env.VITE_API_BASE_URL || '';
+  return (envUrl ? envUrl.replace(/\/+$/, '') : '') + '/api';
+}
 
 /**
  * Build auth headers from an access token.
@@ -13,7 +20,7 @@ export function createApi(getToken) {
 
   return {
     async getHealth() {
-      const res = await fetch(`${API_BASE}/health`);
+      const res = await fetch(`${getApiBase()}/health`);
       if (!res.ok) throw new Error('Failed to fetch backend health');
       return res.json();
     },
@@ -21,7 +28,7 @@ export function createApi(getToken) {
     async uploadDocument(file) {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`${API_BASE}/documents`, {
+      const res = await fetch(`${getApiBase()}/documents`, {
         method: 'POST',
         headers: authHeaders(token()),
         body: formData,
@@ -34,7 +41,7 @@ export function createApi(getToken) {
     },
 
     async getDocument(docId) {
-      const res = await fetch(`${API_BASE}/documents/${docId}`, {
+      const res = await fetch(`${getApiBase()}/documents/${docId}`, {
         headers: authHeaders(token()),
       });
       if (!res.ok) throw new Error('Failed to retrieve document');
@@ -42,7 +49,7 @@ export function createApi(getToken) {
     },
 
     async analyzeDocument(docId, options = {}) {
-      const res = await fetch(`${API_BASE}/analyze`, {
+      const res = await fetch(`${getApiBase()}/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,7 +70,7 @@ export function createApi(getToken) {
     },
 
     async getAnalysis(analysisId) {
-      const res = await fetch(`${API_BASE}/analyses/${analysisId}`, {
+      const res = await fetch(`${getApiBase()}/analyses/${analysisId}`, {
         headers: authHeaders(token()),
       });
       if (!res.ok) throw new Error('Failed to retrieve analysis');
@@ -73,12 +80,12 @@ export function createApi(getToken) {
     getReportDownloadUrl(analysisId) {
       // Append token as query param for direct download links
       const t = token();
-      const base = `${API_BASE}/analyses/${analysisId}/report`;
+      const base = `${getApiBase()}/analyses/${analysisId}/report`;
       return t ? `${base}?token=${t}` : base;
     },
 
     async getHistory() {
-      const res = await fetch(`${API_BASE}/history`, {
+      const res = await fetch(`${getApiBase()}/history`, {
         headers: authHeaders(token()),
       });
       if (!res.ok) throw new Error('Failed to fetch history');
@@ -86,13 +93,13 @@ export function createApi(getToken) {
     },
 
     async getSamples() {
-      const res = await fetch(`${API_BASE}/samples`);
+      const res = await fetch(`${getApiBase()}/samples`);
       if (!res.ok) throw new Error('Failed to fetch sample contracts');
       return res.json();
     },
 
     async loadSample(sampleKey) {
-      const res = await fetch(`${API_BASE}/sample/load/${sampleKey}`, {
+      const res = await fetch(`${getApiBase()}/sample/load/${sampleKey}`, {
         method: 'POST',
         headers: authHeaders(token()),
       });
