@@ -68,29 +68,42 @@ function AppInner() {
   }
 
   // ── Authenticated app ─────────────────────────────────────────────────────
+  // ── Authenticated app ─────────────────────────────────────────────────────
   const handleFileUpload = async (file) => {
     setIsLoading(true);
     setErrorMessage(null);
     setLoadingMessage('Uploading and extracting document pages...');
 
+    // If server is on free tier cold start, update message after 7 seconds
+    const wakeUpTimer = setTimeout(() => {
+      setLoadingMessage('Connecting to server (free tier cloud wakes up in ~30s)...');
+    }, 7000);
+
     try {
       const docRes = await api.uploadDocument(file);
-      setLoadingMessage(`Extracting ${docRes.total_pages} page(s) with PyMuPDF...`);
+      clearTimeout(wakeUpTimer);
+      setLoadingMessage(`Extracting ${docRes.total_pages || 1} page(s) with PyMuPDF...`);
 
       const apiKey = localStorage.getItem('clauseguard_api_key') || null;
       const provider = localStorage.getItem('clauseguard_provider') || 'auto';
       const customModel = localStorage.getItem('clauseguard_model') || null;
 
-      setLoadingMessage('Analyzing risks, obligations, and verifying quotations...');
+      setLoadingMessage('Auditing risks, obligations, and verifying quotations...');
       const analysis = await api.analyzeDocument(docRes.document_id, { apiKey, provider, customModel });
 
-      const fullDoc = await api.getDocument(docRes.document_id);
-      setDocumentData(fullDoc);
+      // Set analysis immediately so UI displays right away
       setAnalysisResult(analysis);
+
+      // Fetch full document in background for modal viewer
+      api.getDocument(docRes.document_id)
+        .then((fullDoc) => setDocumentData(fullDoc))
+        .catch((err) => console.warn('Document viewer load warning:', err));
     } catch (err) {
+      clearTimeout(wakeUpTimer);
       console.error(err);
       setErrorMessage(err.message || 'Failed to process document.');
     } finally {
+      clearTimeout(wakeUpTimer);
       setIsLoading(false);
       setLoadingMessage('');
     }
@@ -101,19 +114,31 @@ function AppInner() {
     setErrorMessage(null);
     setLoadingMessage('Loading and analyzing prepared sample agreement...');
 
+    const wakeUpTimer = setTimeout(() => {
+      setLoadingMessage('Connecting to server (free tier cloud wakes up in ~30s)...');
+    }, 7000);
+
     try {
       const apiKey = localStorage.getItem('clauseguard_api_key') || null;
       const provider = localStorage.getItem('clauseguard_provider') || 'auto';
       const customModel = localStorage.getItem('clauseguard_model') || null;
 
       const analysis = await api.loadSample(sampleKey, { apiKey, provider, customModel });
-      const fullDoc = await api.getDocument(analysis.document_id);
-      setDocumentData(fullDoc);
+      clearTimeout(wakeUpTimer);
+
+      // Set analysis immediately
       setAnalysisResult(analysis);
+
+      // Fetch full doc in background
+      api.getDocument(analysis.document_id)
+        .then((fullDoc) => setDocumentData(fullDoc))
+        .catch((err) => console.warn('Document viewer load warning:', err));
     } catch (err) {
+      clearTimeout(wakeUpTimer);
       console.error(err);
       setErrorMessage(err.message || 'Failed to load sample agreement.');
     } finally {
+      clearTimeout(wakeUpTimer);
       setIsLoading(false);
       setLoadingMessage('');
     }

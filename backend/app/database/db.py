@@ -93,74 +93,86 @@ def save_document(
 ) -> None:
     uid = user_id or "guest_user"
     if USE_SUPABASE and _supabase_client:
-        payload = {
-            "id": doc_id,
-            "filename": filename,
-            "total_pages": total_pages,
-            "file_size_bytes": file_size_bytes,
-            "word_count": word_count,
-            "file_path": file_path,
-            "raw_text_json": pages_data,
-            "user_id": uid,
-        }
-        _supabase_client.table("documents").upsert(payload).execute()
-        return
+        try:
+            payload = {
+                "id": doc_id,
+                "filename": filename,
+                "total_pages": total_pages,
+                "file_size_bytes": file_size_bytes,
+                "word_count": word_count,
+                "file_path": str(file_path),
+                "raw_text_json": pages_data,
+                "user_id": uid,
+            }
+            _supabase_client.table("documents").upsert(payload).execute()
+            return
+        except Exception as e:
+            print(f"[ClauseGuard AI] Supabase save_document failed ({e}), falling back to SQLite.")
 
     # SQLite
-    with _get_sqlite_conn() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT OR REPLACE INTO documents 
-            (id, user_id, filename, total_pages, file_size_bytes, word_count, file_path, raw_text_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            doc_id,
-            uid,
-            filename,
-            total_pages,
-            file_size_bytes,
-            word_count,
-            file_path,
-            json.dumps(pages_data)
-        ))
-        conn.commit()
+    try:
+        with _get_sqlite_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO documents 
+                (id, user_id, filename, total_pages, file_size_bytes, word_count, file_path, raw_text_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                doc_id,
+                uid,
+                filename,
+                total_pages,
+                file_size_bytes,
+                word_count,
+                str(file_path),
+                json.dumps(pages_data)
+            ))
+            conn.commit()
+    except Exception as e:
+        print(f"[ClauseGuard AI] SQLite save_document error: {e}")
 
 
 def get_document(doc_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     if USE_SUPABASE and _supabase_client:
-        query = _supabase_client.table("documents").select("*").eq("id", doc_id)
-        res = query.maybe_single().execute()
-        if not res or not res.data:
-            return None
-        row = res.data
-        return {
-            "id": row["id"],
-            "filename": row["filename"],
-            "total_pages": row["total_pages"],
-            "file_size_bytes": row["file_size_bytes"],
-            "word_count": row["word_count"],
-            "file_path": row["file_path"],
-            "pages": row["raw_text_json"],
-            "created_at": row["created_at"],
-        }
+        try:
+            query = _supabase_client.table("documents").select("*").eq("id", doc_id)
+            res = query.maybe_single().execute()
+            if res and res.data:
+                row = res.data
+                return {
+                    "id": row["id"],
+                    "filename": row["filename"],
+                    "total_pages": row["total_pages"],
+                    "file_size_bytes": row["file_size_bytes"],
+                    "word_count": row["word_count"],
+                    "file_path": row["file_path"],
+                    "pages": row["raw_text_json"],
+                    "created_at": row["created_at"],
+                }
+        except Exception as e:
+            print(f"[ClauseGuard AI] Supabase get_document error: {e}, falling back to SQLite.")
 
     # SQLite
-    with _get_sqlite_conn() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
-        row = cursor.fetchone()
-        if not row:
-            return None
-        return {
-            "id": row["id"],
-            "filename": row["filename"],
-            "total_pages": row["total_pages"],
-            "file_size_bytes": row["file_size_bytes"],
-            "word_count": row["word_count"],
-            "file_path": row["file_path"],
-            "pages": json.loads(row["raw_text_json"]),
-            "created_at": row["created_at"]
-        }
+    try:
+        with _get_sqlite_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row["id"],
+                "filename": row["filename"],
+                "total_pages": row["total_pages"],
+                "file_size_bytes": row["file_size_bytes"],
+                "word_count": row["word_count"],
+                "file_path": row["file_path"],
+                "pages": json.loads(row["raw_text_json"]),
+                "created_at": row["created_at"]
+            }
+    except Exception as e:
+        print(f"[ClauseGuard AI] SQLite get_document error: {e}")
+        return None
 
 
 # ─────────────────────── Analyses ─────────────────────────────────────────────
@@ -174,35 +186,41 @@ def save_analysis(
 ) -> None:
     uid = user_id or "guest_user"
     if USE_SUPABASE and _supabase_client:
-        payload = {
-            "id": analysis_id,
-            "document_id": document_id,
-            "result_json": result,
-            "engine_used": engine_used,
-            "risk_score": result.get("risk_score", 0),
-            "contract_type": result.get("contract_type", "Agreement"),
-            "user_id": uid,
-        }
-        _supabase_client.table("analyses").upsert(payload).execute()
-        return
+        try:
+            payload = {
+                "id": analysis_id,
+                "document_id": document_id,
+                "result_json": result,
+                "engine_used": engine_used,
+                "risk_score": result.get("risk_score", 0),
+                "contract_type": result.get("contract_type", "Agreement"),
+                "user_id": uid,
+            }
+            _supabase_client.table("analyses").upsert(payload).execute()
+            return
+        except Exception as e:
+            print(f"[ClauseGuard AI] Supabase save_analysis failed ({e}), falling back to SQLite.")
 
     # SQLite
-    with _get_sqlite_conn() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT OR REPLACE INTO analyses
-            (id, user_id, document_id, result_json, engine_used, risk_score, contract_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            analysis_id,
-            uid,
-            document_id,
-            json.dumps(result),
-            engine_used,
-            result.get("risk_score", 0),
-            result.get("contract_type", "Agreement")
-        ))
-        conn.commit()
+    try:
+        with _get_sqlite_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO analyses
+                (id, user_id, document_id, result_json, engine_used, risk_score, contract_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                analysis_id,
+                uid,
+                document_id,
+                json.dumps(result),
+                engine_used,
+                result.get("risk_score", 0),
+                result.get("contract_type", "Agreement")
+            ))
+            conn.commit()
+    except Exception as e:
+        print(f"[ClauseGuard AI] SQLite save_analysis error: {e}")
 
 
 def get_analysis(analysis_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:

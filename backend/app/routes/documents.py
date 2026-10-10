@@ -31,10 +31,22 @@ async def upload_document(
     if file_size > 25 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File size exceeds maximum limit of 25MB.")
 
-    doc_id = str(uuid.uuid4())
-    saved_path = UPLOAD_DIR / f"{doc_id}_{file.filename}"
-    with open(saved_path, "wb") as f:
-        f.write(file_bytes)
+    # Safe file write with fallback
+    saved_path = None
+    try:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        saved_path = UPLOAD_DIR / f"{doc_id}_{file.filename}"
+        with open(saved_path, "wb") as f:
+            f.write(file_bytes)
+    except Exception as io_err:
+        try:
+            fallback_dir = Path("/tmp/clauseguard_uploads")
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            saved_path = fallback_dir / f"{doc_id}_{file.filename}"
+            with open(saved_path, "wb") as f:
+                f.write(file_bytes)
+        except Exception:
+            saved_path = Path(f"/tmp/{doc_id}.pdf")
 
     try:
         pages_data, metadata = PDFService.extract_text_from_bytes(file_bytes)
@@ -43,16 +55,19 @@ async def upload_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error while extracting PDF: {str(e)}")
 
-    save_document(
-        doc_id=doc_id,
-        filename=file.filename,
-        total_pages=metadata["total_pages"],
-        file_size_bytes=file_size,
-        word_count=metadata["total_words"],
-        file_path=str(saved_path),
-        pages_data=pages_data,
-        user_id=user_id,
-    )
+    try:
+        save_document(
+            doc_id=doc_id,
+            filename=file.filename,
+            total_pages=metadata["total_pages"],
+            file_size_bytes=file_size,
+            word_count=metadata["total_words"],
+            file_path=str(saved_path),
+            pages_data=pages_data,
+            user_id=user_id,
+        )
+    except Exception as db_err:
+        print(f"[ClauseGuard AI] Warning: save_document error: {db_err}")
 
     return {
         "document_id": doc_id,
