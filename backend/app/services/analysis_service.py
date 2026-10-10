@@ -122,6 +122,7 @@ class AnalysisService:
         analysis_dict = None
         engine_label = "Intelligent Legal Analysis Engine (Local Heuristic)"
 
+        llm_error_reason = None
         if resolved_key and len(resolved_key.strip()) > 5:
             try:
                 analysis_dict, engine_label = await cls._analyze_with_llm(
@@ -131,7 +132,9 @@ class AnalysisService:
                     custom_model=custom_model
                 )
             except Exception as e:
-                print(f"[AnalysisService] LLM call failed: {e}. Falling back to Heuristic Engine.")
+                err_str = str(e)
+                print(f"[AnalysisService] LLM call failed: {err_str}. Falling back to Heuristic Engine.")
+                llm_error_reason = err_str
                 analysis_dict = None
 
         if not analysis_dict:
@@ -144,6 +147,8 @@ class AnalysisService:
         analysis_dict["total_pages"] = len(pages_data)
         analysis_dict["word_count"] = sum(p.get("word_count", 0) for p in pages_data)
         analysis_dict["engine_used"] = engine_label
+        if llm_error_reason:
+            analysis_dict["llm_notice"] = f"LLM Warning: {llm_error_reason}"
 
         # Run Evidence Verification Service
         analysis_dict = VerificationService.verify_analysis_findings(analysis_dict, pages_data)
@@ -158,31 +163,82 @@ class AnalysisService:
         provider: str,
         custom_model: Optional[str]
     ) -> Tuple[Dict[str, Any], str]:
-        """Call external LLM API (OpenRouter or OpenAI) with page-tagged content."""
+        """Call external LLM API (OpenAI, Gemini, or OpenRouter) with page-tagged content."""
         # Construct document text with page markers
         formatted_pages = []
         for p in pages_data[:20]:  # limit to first 20 pages to protect context limits
             formatted_pages.append(f"--- PAGE {p['page_number']} ---\n{p['text']}\n")
         full_content = "\n".join(formatted_pages)
 
-        # Decide endpoint and model
-        if provider == "openai" or api_key.startswith("sk-") and not api_key.startswith("sk-or-"):
+        # 1. Google Gemini Native API
+        if provider == "gemini" or api_key.startswith("AIza"):
+            model = custom_model or os.getenv("LLM_MODEL") or "gemini-2.0-flash"
+            # Strip prefixes if entered as google/gemini-...
+            if "/" in model:
+                model = model.split("/")[-1]
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            payload = {
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [{"text": f"{SYSTEM_PROMPT}\n\nAnalyze this contract thoroughly and return ONLY the specified JSON:\n\n{full_content}"}]
+                    }
+                ],
+                "generationConfig": {
+                    "temperature": 0.1,
+                    "responseMimeType": "application/json"
+                }
+            }
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code != 200:
+                    err_body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else resp.text
+                    err_msg = err_body.get("error", {}).get("message", resp.text) if isinstance(err_body, dict) else str(err_body)
+                    raise RuntimeError(f"Gemini API Error ({resp.status_code}): {err_msg}")
+                data = resp.json()
+                raw_content = data["candidates"][0]["content"]["parts"][0]["text"]
+                parsed = json.loads(raw_content)
+                return parsed, f"Google Gemini ({model})"
+
+        # 2. OpenAI API
+        if provider == "openai" or (api_key.startswith("sk-") and not api_key.startswith("sk-or-")):
             url = "https://api.openai.com/v1/chat/completions"
             model = custom_model or os.getenv("LLM_MODEL") or "gpt-4o-mini"
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
             engine_name = f"OpenAI ({model})"
-        else:
-            # Default to OpenRouter
-            url = "https://openrouter.ai/api/v1/chat/completions"
-            model = custom_model or os.getenv("LLM_MODEL") or "google/gemini-2.0-flash-001"
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://clauseguard.ai",
-                "X-Title": "ClauseGuard AI"
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Analyze this contract thoroughly:\n\n{full_content}"}
+                ],
+                "temperature": 0.1,
+                "response_format": {"type": "json_object"}
             }
-            engine_name = f"OpenRouter ({model})"
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                if resp.status_code != 200:
+                    try:
+                        err_json = resp.json()
+                        err_detail = err_json.get("error", {}).get("message", resp.text)
+                    except Exception:
+                        err_detail = resp.text
+                    raise RuntimeError(f"OpenAI API Error ({resp.status_code}): {err_detail}")
+                data = resp.json()
+                raw_content = data["choices"][0]["message"]["content"]
+                parsed = json.loads(raw_content)
+                return parsed, engine_name
 
+        # 3. OpenRouter API
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        model = custom_model or os.getenv("LLM_MODEL") or "google/gemini-2.0-flash-001"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://clauseguard.ai",
+            "X-Title": "ClauseGuard AI"
+        }
+        engine_name = f"OpenRouter ({model})"
         payload = {
             "model": model,
             "messages": [
@@ -195,10 +251,15 @@ class AnalysisService:
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
+            if resp.status_code != 200:
+                try:
+                    err_json = resp.json()
+                    err_detail = err_json.get("error", {}).get("message", resp.text)
+                except Exception:
+                    err_detail = resp.text
+                raise RuntimeError(f"OpenRouter API Error ({resp.status_code}): {err_detail}")
             data = resp.json()
             raw_content = data["choices"][0]["message"]["content"]
-            # Parse json
             parsed = json.loads(raw_content)
             return parsed, engine_name
 

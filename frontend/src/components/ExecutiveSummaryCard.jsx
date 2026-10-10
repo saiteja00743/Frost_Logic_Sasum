@@ -105,12 +105,20 @@ export default function ExecutiveSummaryCard({ analysis, onOpenViewer }) {
         <div className="lg:col-span-9 flex flex-col justify-between">
           <div>
             {/* Verification Audit Banner */}
-            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium mb-4">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium mb-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>
                 <strong>Evidence Audit Passed:</strong> {verifRate}% of findings ({verifiedCount} of {totalChecked} quotes) verified against raw document text.
               </span>
             </div>
+
+            {/* LLM Notice / Quota Alert Banner if LLM failed */}
+            {analysis.llm_notice && (
+              <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-medium mb-3">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>{analysis.llm_notice}</span>
+              </div>
+            )}
 
             <h3 className="text-sm font-semibold text-slate-300 mb-2">Executive Summary</h3>
             <p className="text-sm text-slate-300 leading-relaxed bg-slate-900/40 p-4 rounded-xl border border-slate-800/60 mb-4">
