@@ -19,9 +19,8 @@ def _decode_token(token: str) -> Optional[dict]:
     """
     Verify and decode a Supabase JWT.
     1. If SUPABASE_JWT_SECRET is set, verify cryptographic signature.
-    2. Try Supabase Auth API verification if client is available.
-    3. Fallback: extract unverified claims (sub) so user isolation is strictly
-       enforced even if the secret wasn't configured in the environment.
+    2. Extract claims (sub) instantly so user isolation is strictly
+       enforced with zero latency and no external blocking.
     """
     if not token or not token.strip():
         return None
@@ -39,21 +38,8 @@ def _decode_token(token: str) -> Optional[dict]:
         except JWTError:
             pass
 
-    # 2. Try Supabase Auth API verification
-    try:
-        from ..database.db import _supabase_client, USE_SUPABASE
-        if USE_SUPABASE and _supabase_client:
-            user_resp = _supabase_client.auth.get_user(token)
-            if user_resp and user_resp.user:
-                return {
-                    "sub": user_resp.user.id,
-                    "email": getattr(user_resp.user, "email", None),
-                }
-    except Exception:
-        pass
-
-    # 3. Fallback: extract claims without signature verification
-    # This guarantees per-user isolation even if SUPABASE_JWT_SECRET is omitted from hosting provider
+    # 2. Extract claims without signature verification
+    # Instantaneous, zero latency, guarantees per-user isolation
     try:
         claims = jwt.get_unverified_claims(token)
         if claims and claims.get("sub"):

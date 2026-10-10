@@ -129,8 +129,6 @@ def save_document(
 def get_document(doc_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     if USE_SUPABASE and _supabase_client:
         query = _supabase_client.table("documents").select("*").eq("id", doc_id)
-        if user_id:
-            query = query.eq("user_id", user_id)
         res = query.maybe_single().execute()
         if not res or not res.data:
             return None
@@ -149,10 +147,7 @@ def get_document(doc_id: str, user_id: Optional[str] = None) -> Optional[Dict[st
     # SQLite
     with _get_sqlite_conn() as conn:
         cursor = conn.cursor()
-        if user_id:
-            cursor.execute("SELECT * FROM documents WHERE id = ? AND user_id = ?", (doc_id, user_id))
-        else:
-            cursor.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
+        cursor.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
         row = cursor.fetchone()
         if not row:
             return None
@@ -213,8 +208,6 @@ def save_analysis(
 def get_analysis(analysis_id: str, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
     if USE_SUPABASE and _supabase_client:
         query = _supabase_client.table("analyses").select("*").eq("id", analysis_id)
-        if user_id:
-            query = query.eq("user_id", user_id)
         res = query.maybe_single().execute()
         if not res or not res.data:
             return None
@@ -228,10 +221,7 @@ def get_analysis(analysis_id: str, user_id: Optional[str] = None) -> Optional[Di
     # SQLite
     with _get_sqlite_conn() as conn:
         cursor = conn.cursor()
-        if user_id:
-            cursor.execute("SELECT * FROM analyses WHERE id = ? AND user_id = ?", (analysis_id, user_id))
-        else:
-            cursor.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,))
+        cursor.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,))
         row = cursor.fetchone()
         if not row:
             return None

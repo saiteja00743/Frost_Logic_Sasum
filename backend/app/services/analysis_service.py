@@ -96,6 +96,25 @@ Respond ONLY with a valid JSON object matching this schema:
 }
 """
 
+def _parse_llm_json(raw_text: str) -> dict:
+    """
+    Robustly parse LLM JSON responses, automatically stripping markdown code blocks
+    (e.g. ```json ... ```) and handling leading/trailing whitespace or text.
+    """
+    text = raw_text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        return json.loads(text)
+    except Exception:
+        # Fallback: extract substring between first { and last }
+        match = re.search(r"(\{.*\})", text, re.DOTALL)
+        if match:
+            return json.loads(match.group(1))
+        raise
+
+
 class AnalysisService:
     @classmethod
     async def analyze_document(
@@ -217,7 +236,7 @@ class AnalysisService:
                     raise RuntimeError(f"Gemini API Error ({resp.status_code}): {err_msg}")
                 data = resp.json()
                 raw_content = data["candidates"][0]["content"]["parts"][0]["text"]
-                parsed = json.loads(raw_content)
+                parsed = _parse_llm_json(raw_content)
                 return parsed, f"Google Gemini ({model})"
 
         # 2. OpenAI API
@@ -246,7 +265,7 @@ class AnalysisService:
                     raise RuntimeError(f"OpenAI API Error ({resp.status_code}): {err_detail}")
                 data = resp.json()
                 raw_content = data["choices"][0]["message"]["content"]
-                parsed = json.loads(raw_content)
+                parsed = _parse_llm_json(raw_content)
                 return parsed, engine_name
 
         # 3. Groq Cloud API
@@ -275,7 +294,7 @@ class AnalysisService:
                     raise RuntimeError(f"Groq API Error ({resp.status_code}): {err_detail}")
                 data = resp.json()
                 raw_content = data["choices"][0]["message"]["content"]
-                parsed = json.loads(raw_content)
+                parsed = _parse_llm_json(raw_content)
                 return parsed, engine_name
 
         # 4. OpenRouter API
@@ -310,7 +329,7 @@ class AnalysisService:
                     raise RuntimeError(f"OpenRouter API Error ({resp.status_code}): {err_detail}")
                 data = resp.json()
                 raw_content = data["choices"][0]["message"]["content"]
-                parsed = json.loads(raw_content)
+                parsed = _parse_llm_json(raw_content)
                 return parsed, engine_name
 
     @classmethod
