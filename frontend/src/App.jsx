@@ -221,6 +221,7 @@ function AppInner() {
             <ExecutiveSummaryCard
               analysis={analysisResult}
               onOpenViewer={() => { setActiveViewerQuote(null); setIsViewerOpen(true); }}
+              onOpenSettings={() => setIsSettingsOpen(true)}
               api={api}
             />
             <RiskDashboard risks={analysisResult.risks || []} onInspectQuote={handleInspectQuote} />

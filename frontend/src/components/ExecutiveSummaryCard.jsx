@@ -2,7 +2,7 @@ import React from 'react';
 import { Download, FileText, CheckCircle2, AlertTriangle, Users, BookOpen, ShieldAlert, Cpu } from 'lucide-react';
 import { api } from '../services/api';
 
-export default function ExecutiveSummaryCard({ analysis, onOpenViewer, api: propApi }) {
+export default function ExecutiveSummaryCard({ analysis, onOpenViewer, onOpenSettings, api: propApi }) {
   if (!analysis) return null;
 
   const riskScore = analysis.risk_score || 0;
@@ -123,9 +123,26 @@ export default function ExecutiveSummaryCard({ analysis, onOpenViewer, api: prop
 
             {/* LLM Notice / Quota Alert Banner if LLM failed */}
             {analysis.llm_notice && (
-              <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-medium mb-3">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <span>{analysis.llm_notice}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-medium mb-4">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold block sm:inline mr-1">LLM Notice:</span>
+                    <span>
+                      {analysis.llm_notice.includes('429') || analysis.llm_notice.includes('credits')
+                        ? 'OpenAI API key has 0 credits remaining (Error 429). Switch to Google Gemini (free with no credit card required) or add credits to use full AI analysis.'
+                        : analysis.llm_notice}
+                    </span>
+                  </div>
+                </div>
+                {onOpenSettings && (
+                  <button
+                    onClick={onOpenSettings}
+                    className="shrink-0 self-start sm:self-auto px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-semibold transition cursor-pointer"
+                  >
+                    Open AI Settings →
+                  </button>
+                )}
               </div>
             )}
 

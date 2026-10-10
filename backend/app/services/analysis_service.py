@@ -138,6 +138,21 @@ class AnalysisService:
                 analysis_dict = None
 
         if not analysis_dict:
+            # If primary LLM failed (e.g. OpenAI quota 429), check if server has a fallback GEMINI_API_KEY
+            fallback_gemini = os.getenv("GEMINI_API_KEY")
+            if fallback_gemini and fallback_gemini != resolved_key:
+                try:
+                    analysis_dict, engine_label = await cls._analyze_with_llm(
+                        pages_data=pages_data,
+                        api_key=fallback_gemini,
+                        provider="gemini",
+                        custom_model="gemini-2.0-flash"
+                    )
+                    llm_error_reason = None
+                except Exception as fb_err:
+                    print(f"[AnalysisService] Server Gemini fallback also failed: {fb_err}")
+
+        if not analysis_dict:
             analysis_dict = cls._analyze_heuristic(filename, pages_data)
             engine_label = "ClauseGuard Intelligent Legal Engine (Rule & Heuristic)"
 
