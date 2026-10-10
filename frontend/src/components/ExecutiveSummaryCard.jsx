@@ -1,8 +1,9 @@
-import React from 'react';
-import { Download, FileText, CheckCircle2, AlertTriangle, Users, BookOpen, ShieldAlert, Cpu } from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, FileText, CheckCircle2, AlertTriangle, Users, BookOpen, ShieldAlert, Cpu, X } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function ExecutiveSummaryCard({ analysis, onOpenViewer, onOpenSettings, api: propApi }) {
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
   if (!analysis) return null;
 
   const riskScore = analysis.risk_score || 0;
@@ -122,27 +123,43 @@ export default function ExecutiveSummaryCard({ analysis, onOpenViewer, onOpenSet
             </div>
 
             {/* LLM Notice / Quota Alert Banner if LLM failed */}
-            {analysis.llm_notice && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-medium mb-4">
-                <div className="flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold block sm:inline mr-1">LLM Notice:</span>
-                    <span>
+            {analysis.llm_notice && !noticeDismissed && (
+              <div className="flex items-center justify-between gap-3 p-3 sm:p-3.5 rounded-xl bg-slate-900/90 border border-amber-500/30 text-xs mb-4 shadow-xl backdrop-blur-md">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-amber-300 text-xs">
                       {analysis.llm_notice.includes('429') || analysis.llm_notice.includes('credits')
-                        ? 'OpenAI API key has 0 credits remaining (Error 429). Switch to Google Gemini (free with no credit card required) or add credits to use full AI analysis.'
+                        ? 'OpenAI Quota Exceeded (0 Credits Remaining)'
+                        : 'AI Notice'}
+                    </p>
+                    <p className="text-[11px] text-slate-300 truncate sm:whitespace-normal">
+                      {analysis.llm_notice.includes('429') || analysis.llm_notice.includes('credits')
+                        ? 'Contract was analyzed by built-in legal rules. Switch to free Google Gemini in settings for live LLM analysis.'
                         : analysis.llm_notice}
-                    </span>
+                    </p>
                   </div>
                 </div>
-                {onOpenSettings && (
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {onOpenSettings && (
+                    <button
+                      onClick={onOpenSettings}
+                      className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-semibold transition cursor-pointer"
+                    >
+                      Settings
+                    </button>
+                  )}
                   <button
-                    onClick={onOpenSettings}
-                    className="shrink-0 self-start sm:self-auto px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-semibold transition cursor-pointer"
+                    onClick={() => setNoticeDismissed(true)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                    title="Dismiss notice"
                   >
-                    Open AI Settings →
+                    <X className="w-3.5 h-3.5" />
                   </button>
-                )}
+                </div>
               </div>
             )}
 
